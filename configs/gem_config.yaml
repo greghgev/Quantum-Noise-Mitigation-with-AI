@@ -1,0 +1,38 @@
+# GEM — Gate Error Mitigation — Configuración de experimento
+# Todos los hiperparámetros pasarán por este fichero. Sin hardcoding en el código.
+
+model:
+  hidden_dim: 128           # Dimensión del embedding en el Graph Transformer
+  num_heads: 4              # Cabezas de atención en el GT
+  num_layers: 3             # Capas del Graph Transformer
+  dropout: 0.1
+  use_qcr_node: true        # Nodo virtual QCR (Quantum Circuit Representative)
+  node_feature_dim: 19      # Dims del vector de features por nodo (ver dataset_info.md)
+  output_dim: 1             # Δ escalar global
+
+training:
+  epochs: 100
+  batch_size: 32
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-5
+  optimizer: adam
+  scheduler: cosine         # cosine annealing
+  early_stopping_patience: 15
+  normalize_target: true    # Dividir Δ por el rango del observable antes del loss
+
+data:
+  train_days: [1, 2, 3, 4, 5]
+  val_days: [6]
+  test_days: [8, 9, 10]     # OOD — gap en día 7
+  circuit_types_train:
+    - random
+    - hea
+    - tfim
+  circuit_types_zeroshot:
+    - qaoa                  # Zero-shot A — benchmark SOTA
+    - qft                   # Zero-shot B — contribución original
+
+experiment:
+  seed: 42
+  mlflow_experiment: "GEM_v1"
+  log_every_n_steps: 10

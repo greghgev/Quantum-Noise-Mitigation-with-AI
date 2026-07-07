@@ -1,0 +1,65 @@
+# --- Entornos Virtuales y Binarios ---
+venv/
+env/
+.env
+*.venv
+# Ignorar el entorno de conda si lo creas dentro de la carpeta del proyecto
+include/
+bin/
+share/
+lib/
+lib64/
+
+# --- Configuración de Python & Caché ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# --- MLOps y Experiment Tracking ---
+# Si usas MLflow localmente, ignora la base de datos de experimentos
+mlruns/
+# Si usas W&B localmente
+wandb/
+# Archivos de logs
+*.log
+
+# --- Datasets y Modelos (Pesados) ---
+# No subimos datos crudos ni modelos entrenados a GitHub (usa DVC o MLflow Artifacts)
+data/
+models/*.pt
+models/*.pth
+*.onnx
+
+# --- Credenciales y Variables de Entorno (CRÍTICO) ---
+.env
+.flaskenv
+secrets.json
+*token*
+
+# --- VS Code & Sistema ---
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Windows ADS ---
+*:Zone.Identifier
+
+
+# --- Qiskit / Quantum ---
+# Archivos temporales de simulaciones pesadas
+*.qpy
+
+TODO
+*.TODO
+
+# --- DVC ---
+/.dvc/cache/
+/.dvc/tmp/
+
+# --- MLflow database ---
+mlflow.db
+
+apikey.json

@@ -1,0 +1,40 @@
+name: tfm
+channels:
+  - pytorch
+  - pyg  # Canal necesario para PyTorch Geometric
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - numpy=1.26.4
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - scipy        # Crítico para el solver GMRES (Matrix-Free)
+  - ipykernel
+  - jupyter
+  - cmake        # Necesario para compilar extensiones de Qiskit Aer
+  - pip:
+      # --- Quantum Core ---
+      - qiskit==1.0.2
+      - qiskit-aer>=0.14.0  # Actualizado para compatibilidad total con Qiskit 1.x
+      - qiskit-ibm-runtime==0.21.1
+      
+      # --- Machine Learning ---
+      - torch
+      - torch-geometric  # El motor real para tus grafos y el Transformer
+      
+      # --- MLOps & Experiment Tracking ---
+      - mlflow
+      - wandb
+      
+      # --- Utilities ---
+      - python-dotenv
+      - tqdm
+      - pylint
+      - black
+      - flake8
+      - pre-commit
+      - dvc
+      - requests
