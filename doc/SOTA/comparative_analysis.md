@@ -22,10 +22,11 @@
 | Hirasaki et al. — APL 2023 | ✅ peer-reviewed | ✅ Recibido |
 | Q-Cluster — Patil et al. IEEE QCE 2025 | ✅ peer-reviewed | ✅ Recibido |
 | Placidi et al. — arXiv:2601.14226 | ⚠️ preprint | ✅ Recibido |
-| Das et al. — arXiv:2512.14541 | ⚠️ preprint | ✅ Recibido |
-| Korolev et al. — arXiv:2606.02697 | ⚠️ preprint (EXTRA, añadido a §8) | ✅ Recibido |
+| Anchor / Huo et al. — SIGMETRICS 2026 | ✅ peer-reviewed (aceptado) | ✅ Recibido |
+| mapomatic / Nation & Treinish — PRX Quantum 2023 | ✅ peer-reviewed | ✅ Recibido |
+| Hartnett et al. (Q-CTRL) — Quantum 2024 | ✅ peer-reviewed | ✅ Recibido |
 
-**Total: 13 PDFs.** Todos los papers de §8 están presentes. Korolev et al. añadido a §8 por petición explícita.
+**Total: 14 PDFs.** Todos los papers de §8 están presentes.
 
 ---
 
@@ -39,26 +40,22 @@
 | QEMFormer ✅ | DAG (rama secundaria) + P_noisy global (rama primaria) | Dirigida | El grafo aporta contexto; P_noisy domina |
 | Liao 2024 ✅ | GNN message-passing sobre el DAG del circuito | No especificada en detalle | MPNN-style |
 | Liu et al. ✅ | DAG del circuito | Dirigida por qubit | GNN supera a CNN a mayor profundidad |
-| Das et al. ⚠️ | DAG del circuito con features topológicas (betweenness centrality, k-core) | Dirigida | Objetivo: forense, no mitigación |
 | M3 ✅ | No usa representación de circuito | — | Opera post-ejecución sobre bitstrings |
 | Kim et al. ✅ | No usa representación de circuito | — | Opera sobre mediciones de calibración |
 | Lee & Park ✅ | No usa representación de circuito | — | Opera sobre mediciones de calibración |
 | Q-Cluster ✅ | No usa representación de circuito | — | Features escalares del circuito transpilado |
-| Korolev et al. ⚠️ | Features escalares del circuito (parámetros variacionales) | — | Específico VQE/QAOA |
 | Hirasaki ✅ / Liao 2025 ✅ / Placidi ⚠️ | No centrado en representación de grafo | — | Contextos distintos |
 
 **[HECHO] GTraQEM:** El Graph Transformer *sin* message-passing supera al GNN con message-passing estándar en tareas de mitigación de expectation values. Justificación: en un DAG cuántico, la información de qubit fluye en una sola dirección; el message-passing bidireccional introduce ruido agregado innecesario.
 
 **[HECHO] Liu et al.:** La GNN supera a la CNN en extrapolación a circuitos más profundos que los del conjunto de entrenamiento (entrenado en 3-7 qubits, testeado en 16 qubits, R²≥0.92).
 
-**[HECHO] Das et al.:** Features de topología del grafo (betweenness centrality, k-core) sobre el DAG logran Spearman ρ=0.98 para inferir tasas de error sin calibración explícita.
-
 ### TFM
 
 **[SUPOSICIÓN TFM]** DAG con nodos=puertas y aristas dirigidas por dependencia de qubit. La elección de no-message-passing vs. message-passing aún no está fijada en el código.
 
 **Análisis de trade-off:**
-- La elección de DAG está bien respaldada (GTraQEM, Liu et al., Das et al. convergen en este punto).
+- La elección de DAG está bien respaldada (GTraQEM, Liu et al. y QEMFormer convergen en este punto).
 - La elección entre no-message-passing (GTraQEM) vs. message-passing (Liao 2024, Liu et al.) es la decisión arquitectónica más incierta. El SOTA más fuerte (GTraQEM, QEMFormer) usa no-message-passing → el TFM debería adoptar no-message-passing como decisión inicial y ablacionar después.
 - El nodo virtual QCR de GTraQEM (conectado a todos los nodos) añade contexto global sin message-passing — es un truco elegante que el TFM no tiene actualmente.
 
@@ -144,11 +141,6 @@
 - [HECHO] GNN > CNN para extrapolación de profundidad y número de qubits
 - [HECHO] Baseline tabular (gradient boosting) es competitivo para circuitos pequeños (<10 qubits)
 
-**Korolev et al. ⚠️:**
-- ML ligero (no GNN) sobre parámetros variacionales + telemetría
-- Solo para VQE/QAOA; no generalizable a circuitos arbitrarios
-- [HECHO — preprint sin revisión] Near-Clifford training generaliza a VQE con parámetros lejanos de 0/π.
-
 ### TFM
 
 **[SUPOSICIÓN TFM]** Graph Transformer (similar a GTraQEM). Sin nodo virtual QCR actualmente especificado. Sin la segunda rama MLP de QEMFormer.
@@ -177,7 +169,6 @@
 | Lee & Park ✅ | Distribución corregida en subespacio de bitstrings | Post-ejecución |
 | Q-Cluster ✅ | P_ideal redistribuida (sin ML para el target) | Post-ejecución |
 | Placidi ⚠️ | ⟨O⟩_mit desde P_noisy | Post-ejecución |
-| Korolev ⚠️ | ⟨O⟩_mit para VQE | Post-ejecución (parámetros variacionales) |
 
 **[HECHO] GTraQEM:** Predice Δ = ⟨O⟩_noisy − ⟨O⟩_ideal, no el valor absoluto. Esta formulación residual estabiliza el entrenamiento porque Δ es numéricamente pequeño comparado con ⟨O⟩.
 
@@ -238,7 +229,6 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 - Liao 2024 ✅: Training en near-Clifford circuits eficientemente simulables con el simulador estabilizador de Qiskit.
 - Liao 2025 ✅: Near-Clifford circuits como base de data augmentation → permite escalar a más de 100 qubits sin RAM exponencial.
 - Placidi ⚠️: Near-Clifford training en Quantinuum → generaliza a circuitos VQE/QAOA no-Clifford.
-- Korolev ⚠️: Near-Clifford circuits como surrogate de training para VQE.
 - [HECHO — Liao 2025] Un modelo entrenado en near-Clifford circuits generaliza a circuitos no-Clifford con degradación de rendimiento inferior al 5% en los benchmarks evaluados.
 
 **Método C — Hardware real IBM (gold standard):**
@@ -317,6 +307,12 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 - Proponen post-selection de shots basado en correlaciones entre varianza del output y señal de error elevado.
 - [HECHO] La recalibración diaria de IBM NO es suficiente para capturar estos saltos intra-sesión.
 
+**Anchor / Huo et al. (SIGMETRICS 2026, aceptado) ✅ — EVIDENCIA OPERACIONAL:**
+> [HECHO] Ejecutar el MISMO programa cuántico en momentos distintos (variabilidad temporal) o en regiones distintas del chip (variabilidad espacial) produce resultados inconsistentes en QPUs NISQ. Proponen una técnica basada en programación lineal que reduce esa variabilidad un 73% de media.
+- Complementa a Hirasaki: éste aporta la evidencia FÍSICA del drift (saltos step-like en las tasas de error); Anchor aporta la evidencia OPERACIONAL (impacto medible en los outputs del usuario final) desde la perspectiva de sistemas.
+- Rice University; aceptado en Proceedings of ACM SIGMETRICS 2026 (arXiv:2510.06172).
+- Relevancia directa para el TFM: es la cita reciente y peer-reviewed que justifica que la variabilidad temporal merece tratamiento explícito (feature `day_index` + split temporal OOD) — citar junto a Hirasaki en §3.
+
 **Kim et al. (NJP 2022) ✅:**
 > [HECHO] Los modelos de readout mitigation necesitan re-entrenamiento periódico conforme el hardware deriva. Sin re-entrenamiento, la precisión degrada visiblemente en 24-48 horas.
 
@@ -331,10 +327,10 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 
 ### TFM
 
-**[SUPOSICIÓN TFM]** Drift simulado como decaimiento lineal de los error rates a lo largo de 10 días. El `day_index/10.0` como feature explícita señala el tiempo al modelo. Split OOD: Train días 1-5 | Val día 6 | Gap día 7 | Test OOD días 8-10.
+**[IMPLEMENTADO — TAREA 1, jul-2026]** Drift simulado **step-like**: 2–3 saltos abruptos de ±15–30% por qubit en posiciones aleatorias del timeline de 10 días, pre-computados con semilla fija (`_init_drift_schedule()`). El decay lineal original fue eliminado por ser factualmente incorrecto según Hirasaki et al. El `day_index/10.0` como feature explícita señala el tiempo al modelo. Split OOD: Train días 1-5 | Val día 6 | Gap día 7 | Test OOD días 8-10.
 
-**Análisis de trade-off — PROBLEMA IMPORTANTE:**
-- **El drift lineal es factualmente incorrecto.** Hirasaki et al. demostró empíricamente que el drift es step-like. Entrenar con drift lineal simulado y evaluar en hardware real (con drift step-like) introduce una brecha de distribución que invalidaría la evaluación OOD.
+**Análisis de trade-off:**
+- ~~El drift lineal es factualmente incorrecto~~ **RESUELTO**: el generador implementa el modelo step-like de Hirasaki desde TAREA 1 (ver ROADMAP.md). [SUPOSICIÓN vigente] La magnitud (±15–30%) y la escala temporal (días entre calibraciones, vs. minutos intra-sesión medidos por Hirasaki) son extrapolaciones no validadas en ningún paper.
 - El `day_index` como feature explícita es una contribución original bien fundamentada teóricamente (con la evidencia de Hirasaki como motivación), pero no está validada empíricamente como feature efectivo en ningún paper.
 - El split OOD temporal (5-1-1-3 días) es una decisión de ingeniería razonable y diferenciadora que ningún paper revisado replica exactamente — es una contribución metodológica del TFM.
 - La brecha temporal forzada (día 7 sin datos) es un diseño conservador y correcto para simular el peor caso de drift.
@@ -391,7 +387,6 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 | Kim et al. ✅ | Circuitos de calibración por qubit | 2N por qubit |
 | Liao 2024/2025 ✅ | Near-Clifford circuits | No especificado |
 | Placidi ⚠️ | Near-Clifford + VQE | ~1000 circuitos |
-| Korolev ⚠️ | Near-Clifford para VQE/QAOA | No especificado |
 
 **[HECHO] GTraQEM:** El modelo entrenado con circuitos random de IBM generaliza razonablemente a circuitos QAOA y VQE no vistos durante el training (zero-shot transfer).
 
@@ -405,7 +400,7 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 
 **Análisis de trade-off:**
 - La inclusión de QFT es inusual — QEM-Bench no la incluye como benchmark estándar. El TFM debería justificar su inclusión o considerar substituirla por Trotterized TFIM (que sí es benchmark estándar en QEM-Bench).
-- La sustitución de Grover por HEA es correcta: Grover escala exponencialmente con qubits (mcx gate), mientras que HEA mantiene profundidad O(reps × n). La literatura (GTraQEM, Korolev) confirma HEA como benchmark estándar para QEM en circuitos variacionales.
+- La sustitución de Grover por HEA es correcta: Grover escala exponencialmente con qubits (mcx gate), mientras que HEA mantiene profundidad O(reps × n). La literatura (GTraQEM, Liao 2024) confirma HEA como benchmark estándar para QEM en circuitos variacionales.
 - El rango 5-50 layers está bien justificado por el límite de señal útil (>50 layers → decoherencia casi total).
 - La limitación a 5-15 qubits es consecuencia de la elección de Statevector ground truth, no una decisión de diseño favorable.
 
@@ -529,10 +524,41 @@ Ordenada por urgencia antes de implementar los módulos correspondientes. ⭐ = 
 | 8 | **Liao et al. 2024** (Nature MI) | GNN en hardware IBM real hasta 100 qubits. Escalabilidad | Notebooks de evaluación |
 | 9 | **Q-Cluster** (IEEE QCE 2025) | Paradigma alternativo de QREM. Baseline a comparar | Notebooks de evaluación |
 | 10 | **Liu et al.** (Frontiers 2026) | GNN vs. CNN para predicción de circuitos. Feature engineering | §4 del TFM |
-| 11 | **Das et al.** ⚠️ (arXiv 2025) | Contexto SOTA §3. Relevante para justificar DAG encoding | §3 del TFM |
-| 12 | **Liao et al. 2025** (npj QI) | Noise-agnostic approach. Útil para la sección de limitaciones | §6 del TFM (limitaciones) |
-| 13 | **Korolev et al.** ⚠️ (arXiv 2026) | Referencia para VQE/QAOA. Contexto de near-Clifford training | §3 del TFM |
+| 11 | **Liao et al. 2025** (npj QI) | Noise-agnostic approach. Útil para la sección de limitaciones | §6 del TFM (limitaciones) |
+| 12 | **Anchor / Huo et al.** (SIGMETRICS 2026) | Evidencia operacional de variabilidad temporal/espacial. Refuerza day_index y split temporal OOD | §3 del TFM |
+| 13 | **mapomatic — Nation & Treinish** (PRX Quantum 2023) | La herramienta pre-ejecución nativa de IBM (heurística). Delimita el nicho del GEM | §3 del TFM (related work) |
+| 14 | **Hartnett et al. / Q-CTRL** (Quantum 2024) | Ranking ML pre-ejecución de circuitos. El precedente más cercano a la "Capacidad 1" del GEM | §3 del TFM (related work) |
 
 ---
 
-*Documento generado el 2026-07-07. Actualizar cuando haya resultados experimentales.*
+## 13. Paradigma relacionado: selección/ranking pre-ejecución (añadido jul-2026)
+
+> Estos dos trabajos NO mitigan el error (no corrigen ⟨O⟩) — **eligen** antes de ejecutar. Son el
+> "related work" obligatorio del paradigma pre-ejecución del GEM: demuestran que el problema
+> importa y delimitan exactamente qué hueco cubre el TFM.
+
+### mapomatic — Nation & Treinish (IBM) ✅ [REVISADO — PRX Quantum 4, 010327, 2023]
+**"Suppressing Quantum Circuit Errors Due to System Variability"** — DOI: 10.1103/PRXQuantum.4.010327. Herramienta open-source de la comunidad Qiskit (mismo primer autor que M3).
+- **Qué hace:** puntúa ANTES de ejecutar todos los layouts isomorfos de un circuito ya transpilado (las distintas formas de colocarlo en el chip) usando la calibración del día, y elige el de menor error esperado.
+- **Cómo:** heurística analítica — producto de fidelidades de puertas y readout del layout. Sin ML.
+- **Limitaciones (reconocidas por los autores):** ignora crosstalk y qubits espectadores; la calibración se actualiza cada 3–24 h y puede estar desactualizada → los scores son cotas optimistas.
+- **[HECHO] Los layouts lógicamente equivalentes difieren sustancialmente en fidelidad real** — la variabilidad espacial del chip es significativa y explotable.
+- **Diferencia con el GEM:** score heurístico relativo para ELEGIR layout vs. predicción APRENDIDA de la magnitud Δ para CORREGIR el resultado. mapomatic no aprende de datos, no modela drift, no corrige nada.
+
+### Learning to rank quantum circuits — Hartnett, Barbosa, Mundada, Hush et al. (Q-CTRL) ✅ [REVISADO — Quantum 8, 1542, nov-2024]
+**"Learning to rank quantum circuits for hardware-optimized performance enhancement"** — arXiv:2404.06535, publicado en Quantum.
+- **Qué hace:** modelo ML que rankea circuitos lógicamente equivalentes por rendimiento esperado ANTES de ejecutar, entrenado con mediciones en hardware IBM real (aplicado a selección de layout).
+- **Cómo:** score parametrizado por un modelo de error fenomenológico cuyos parámetros se ajustan con una ranking-loss sobre datos medidos.
+- **[HECHO] Las fidelidades máx./mediana de layouts equivalentes difieren hasta un orden de magnitud.** Su modelo reduce el error de selección 1.8× vs. baseline (tipo mapomatic) y 3.2× vs. aleatorio.
+- **Diferencias con el GEM (las 4 que delimitan el nicho del TFM):**
+  1. Rankean variantes del MISMO circuito; el GEM predice para circuitos arbitrarios.
+  2. Predicen ORDEN relativo; el GEM predice la MAGNITUD Δ — que además permite corregir restando (mitigación), no solo elegir.
+  3. Modelo fenomenológico con pocos parámetros; el GEM es un Graph Transformer sobre el DAG con telemetría por puerta.
+  4. Sin drift temporal explícito; el day_index del GEM lo modela.
+
+### Posicionamiento resultante para la memoria (§3)
+IBM ofrece selección heurística de layout (mapomatic) y la literatura ofrece ranking ML pre-ejecución (Hartnett 2024) — **nadie combina predicción cuantitativa de Δ + grafo del circuito + telemetría con drift explícito + desacoplamiento del readout**. El GEM ocupa ese hueco, y estos dos trabajos son la prueba de que el paradigma pre-ejecución tiene demanda real.
+
+---
+
+*Documento generado el 2026-07-07. Actualizado el 2026-07-08 (migración Heron, Anchor, paradigma pre-ejecución). Actualizar cuando haya resultados experimentales.*
