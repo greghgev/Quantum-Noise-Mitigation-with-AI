@@ -110,7 +110,7 @@ Dos formas de obtenerla:
 
 1. **Regenerarla en ~1 hora con un comando** (100% reproducible, semilla fija):
    `conda run -n tfm python scripts/generate.py --mini`
-2. **Descarga directa**: carpeta compartida en Google Drive → *(enlace pendiente de añadir)*
+2. **Descarga directa**: carpeta compartida en Google Drive → *https://drive.google.com/drive/folders/12D6EtR_6wV81vm4lFoWpeysT1dJQBgxE?usp=sharing*
 
 En cualquier caso, **no hacen falta los datos para entender el proyecto**: el notebook
 `notebooks/01_eda_ibm_telemetry.ipynb` ya incluye todas las gráficas y outputs incrustados.
