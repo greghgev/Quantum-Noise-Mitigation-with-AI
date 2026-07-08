@@ -57,11 +57,13 @@ Donde $b$ son las mediciones ruidosas (tus *counts* de IBM) y $A$ es la matriz d
 
 **NOTA: La Estrategia para tu TFM ->**
 
-Dado que vas a generar tu dataset de entrenamiento en tu ordenador usando el simulador qiskit-aer , nosotros controlamos las reglas del juego. Esta es la configuración que te recomiendo:
+Dado que vas a generar tu dataset de entrenamiento en tu ordenador usando el simulador qiskit-aer, nosotros controlamos las reglas del juego. **Actualización (jul-2026, tras detectar el problema en el EDA de la migración Heron — ver `doc/migracion_heron.md` y `ROADMAP.md` TAREA 8): hay que distinguir dos usos de "shots" que este documento originalmente mezclaba.**
 
-- Para entrenar el modelo: Usaremos entre 1024 y 4096 shots. Queremos que tu IA aprenda a sobrevivir en el "barro". Si la entrenas con 100.000 shots, se sobreajustará (overfitting) a distribuciones perfectas y fallará estrepitosamente cuando le des datos reales de IBM con 1024 shots.
+- **Shots para el INPUT del REM (`TRAIN_SHOTS` en `config.py`, actualmente 1024):** aquí sí aplica el razonamiento original — queremos que la IA aprenda a sobrevivir en el "barro". Entrenar con 100.000 shots sobreajustaría a distribuciones casi perfectas que nunca aparecen en hardware real.
 
-- Para la variable "Ground Truth" (Tus etiquetas $Y$): Qiskit nos permite extraer el vector de estado matemático ideal (probabilidad exacta e infinita). Usaremos ese vector exacto como el objetivo al que tu IA tiene que intentar llegar.
+- **Shots para ESTIMAR LA ETIQUETA Δ del GEM (`LABEL_SHOTS` en `config.py`, actualmente 4096):** aquí el razonamiento es el CONTRARIO. Δ es ground truth — cuanto más ruido de muestreo (shot noise) lleve la etiqueta, peor aprende el modelo, sin ningún beneficio de "realismo". [SUPOSICIÓN] Con 4096 shots el suelo de shot-noise es ≈±0.005 — del mismo orden que el propio Δ medido en circuitos poco profundos (QAOA reps=1, QFT), es decir la etiqueta es en esos casos indistinguible del ruido de medición. Pendiente subir a 8192/16384 antes del full run (TAREA 8, ROADMAP.md).
+
+- Para la variable "Ground Truth" del **valor esperado ideal**: Qiskit nos permite extraer el vector de estado matemático ideal (probabilidad exacta e infinita, sin shot noise) vía `Statevector`. Se usa siempre, para calcular la mitad "ideal" de Δ — nunca tiene el problema anterior.
 
 ---
 
@@ -87,7 +89,7 @@ Gracias a que estás usando el simulador `qiskit-aer` para generar tus datos, t�
 
 * **Equipo B (Entrenando el GEM - Transformer):**
     * Apagas el ruido de lectura en el simulador (asumes que el sensor es perfecto).
-    * Generas circuitos profundos y complejos (QAOA, QFT).
+    * Generas circuitos profundos y complejos — **Random, HEA, Trotterized TFIM** (⚠️ corrección jul-2026: la versión original de esta nota decía "QAOA, QFT" como ejemplo, pero desde TAREA 1 ambos están reservados EXCLUSIVAMENTE para evaluación zero-shot y NUNCA aparecen en el pool de entrenamiento — ver `_CIRCUIT_TYPES_BY_SPLIT` en `quantum_gen.py` y `ROADMAP.md`).
     * Enciendes **solo el ruido térmico y de despolarización** de las puertas.
     * El Transformer aprende a predecir la degradación del circuito sin que el ruido de los sensores ensucie sus cálculos.
 

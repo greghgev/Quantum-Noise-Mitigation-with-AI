@@ -1,6 +1,6 @@
 # Datasheet: TFM-Quantum Dataset
 
-Este documento detalla las especificaciones, decisiones arquitectónicas y justificaciones matemáticas detrás del conjunto de datos generado para el entrenamiento de los modelos GEM (Gate Error Mitigation) y REM (Readout Error Mitigation). 
+Este documento detalla las especificaciones, decisiones arquitectónicas y justificaciones matemáticas detrás del conjunto de datos generado para el entrenamiento de los modelos GEM (Gate Error Mitigation) y REM (Readout Error Mitigation).
 
 El objetivo de este dataset **no** es el descubrimiento algorítmico, sino la captura y modelado del **Data Corruption & Denoising** inducido por el hardware cuántico en la era NISQ (Noisy Intermediate-Scale Quantum).
 
@@ -8,9 +8,9 @@ El objetivo de este dataset **no** es el descubrimiento algorítmico, sino la ca
 
 ## 1. Hardware Objetivo y Límites de Escalabilidad
 
-Para simular un entorno realista, el dataset actúa como un Gemelo Digital de los procesadores cuánticos de la familia **IBM Eagle (127 qubits)**, utilizando sus grafos de topología y datos históricos de calibración.
+Para simular un entorno realista, el dataset actúa como un Gemelo Digital de los procesadores cuánticos de la familia **IBM Heron r2 (156 qubits)** — backend de referencia `ibm_kingston`. El proyecto migró desde IBM Eagle (`ibm_kyiv`) en julio de 2026, tras el retiro completo de la familia Eagle por parte de IBM (último Eagle retirado: abril 2026).
 
-* **Topología Base:** Arquitectura *Heavy-Hex* de 127 qubits.
+* **Topología Base:** Heron r2, 156 qubits, puerta 2-qubit nativa **CZ** (Eagle usaba CX). [SUPOSICIÓN] La calibración sintética temporal usa una cadena lineal de 20 qubits hasta disponer de credenciales IBM para descargar el coupling map real.
 * **Límite de Qubits por Sub-grafo:** Entre **5 y 15 qubits**.
 * **Justificación de Ingeniería:** La generación del *Ground Truth* (etiquetas $Y$) requiere simular el vector de estado ideal ($2^n$ amplitudes complejas). Escalar más allá de 15 qubits dispararía el consumo de memoria RAM por encima de los 16 GB disponibles en la estación de trabajo local, provocando cuelgues por *Out of Memory* (OOM). Operar en sub-grafos contiguos garantiza la escalabilidad del pipeline manteniendo tiempos de generación viables.
 
@@ -24,7 +24,7 @@ Para evitar el *overfitting* algorítmico y asegurar que las redes neuronales ap
 
 * **~80% Circuitos Aleatorios (Random Clifford / Unitary):** Exploran uniformemente el espacio de Hilbert. Obligan al modelo GEM a aprender la degradación subyacente sin memorizar patrones de algoritmos específicos. **La proporción exacta se ablacionará** (70/30, 80/20, 90/10) durante la fase de entrenamiento — no hay precedente empírico fijo en la literatura. Se elige la que maximice el rendimiento en validación.
 * **~20% Circuitos Estructurados (en entrenamiento):**
-  * **HEA (Hardware-Efficient Ansatz / VQE):** Circuitos variacionales parametrizados (`TwoLocal`, bloques Ry + CX, `reps=2`). Sustituye a Grover. Profundidad O(reps×n), benchmark estándar VQE [Bao et al., ICLR 2025; Liao et al., Nature MI 2024].
+  * **HEA (Hardware-Efficient Ansatz / VQE):** Circuitos variacionales parametrizados (bloques Ry + CX construidos manualmente — `TwoLocal` está deprecated en Qiskit 2.x —, `reps=2`). Sustituye a Grover. Profundidad O(reps×n), benchmark estándar VQE [Bao et al., ICLR 2025; Liao et al., Nature MI 2024].
   * **Trotterized TFIM (Transverse-Field Ising Model):** Simulación de Hamiltoniano de Ising mediante Trotterización. Benchmark estándar de QEM-Bench [Bao et al., ICML 2025]. Permite comparación directa con QEMFormer y el SOTA reciente.
 
 ### Zero-shot (NUNCA en entrenamiento — solo en evaluación)
@@ -63,14 +63,16 @@ El pipeline no exporta archivos genéricos (como CSV o Parquet) para evitar cuel
 
 | # | Feature | Dims | Fuente | Estado |
 |---|---|---|---|---|
-| 1 | **Instrucción Lógica:** One-Hot del tipo de compuerta (`cx`, `id`, `rz`, `sx`, `x`, `measure`) | 6 | Estructura del circuito | ✅ Implementado |
+| 1 | **Instrucción Lógica:** One-Hot del tipo de compuerta (`cz`, `id`, `rz`, `sx`, `x`, `measure`) | 6 | Estructura del circuito | ✅ Implementado |
 | 2 | **Rotaciones:** Ángulos paramétricos $\theta, \phi, \lambda$ (padding 0.0 si no aplica) | 3 | Parámetros del circuito | ✅ Implementado |
 | 3 | **Telemetría qubit control:** $T_1$, $T_2$, `readout_error` | 3 | `backend.properties()` IBM | ✅ Implementado |
-| 4 | **Error de compuerta** (`gate_error`): tasa empírica de error medida ese día en el hardware | 1 | `backend.properties()` IBM | ❌ Pendiente TAREA 1 |
-| 5 | **Duración del pulso** (`gate_length`): tiempo real de ejecución en segundos | 1 | `backend.properties()` IBM | ❌ Pendiente TAREA 1 |
-| 6 | **Telemetría qubit target:** $T_1$, $T_2$, `readout_error` (zero-pad `[0,0,0]` para puertas de 1 qubit) | 3 | `backend.properties()` IBM | ⚠️ Implementado con copia en lugar de zero-pad |
-| 7 | **Día de calibración** (`day_index / 10.0`): señal explícita de Concept Drift temporal | 1 | Pipeline de generación | ❌ Pendiente TAREA 1 |
-| 8 | **Posición en el DAG** (`pos / depth_total`): profundidad normalizada — estima decoherencia acumulada | 1 | Estructura del DAG | ❌ Pendiente TAREA 1 |
+| 4 | **Error de compuerta** (`gate_error`): tasa empírica de error medida ese día en el hardware | 1 | `backend.properties()` IBM | ✅ Implementado |
+| 5 | **Duración del pulso** (`gate_length`): tiempo real de ejecución en segundos | 1 | `backend.properties()` IBM | ✅ Implementado |
+| 6 | **Telemetría qubit target:** $T_1$, $T_2$, `readout_error` (zero-pad `[0,0,0]` para puertas de 1 qubit) | 3 | `backend.properties()` IBM | ✅ Implementado (zero-pad correcto) |
+| 7 | **Día de calibración** (`day_index / 10.0`): señal explícita de Concept Drift temporal | 1 | Pipeline de generación | ✅ Implementado |
+| 8 | **Posición en el DAG** (`pos / depth_total`): profundidad normalizada — estima decoherencia acumulada | 1 | Estructura del DAG | ✅ Implementado |
+
+**Nota Heron (CZ):** la puerta CZ es simétrica — no existe distinción física control/target. Por convención del extractor, "control" = `qargs[0]` y "target" = `qargs[1]` (orden asignado por el transpilador).
 
 **Nota sobre puertas de 1 qubit:** Para puertas como `rz`, `sx`, `x`, `id` — que operan sobre un único qubit — la posición del *qubit target* (feature #6) se rellena con `[0.0, 0.0, 0.0]` (zero-padding), no con una copia del qubit control. Esto señala explícitamente al modelo que no existe un segundo qubit en la operación.
 

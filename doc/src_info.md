@@ -1,6 +1,6 @@
 # Documentación del Código Fuente (`src/`)
 
-Este directorio contiene la lógica de negocio y el núcleo algorítmico del proyecto **TFM-Quantum**. El código está diseñado bajo principios SOLID, programación orientada a objetos (POO) y estándares estrictos de MLOps. 
+Este directorio contiene la lógica de negocio y el núcleo algorítmico del proyecto **TFM-Quantum**. El código está diseñado bajo principios SOLID, programación orientada a objetos (POO) y estándares estrictos de MLOps.
 
 El objetivo de esta estructura es garantizar la modularidad, la reproducibilidad y el desacoplamiento absoluto entre las fases de generación de datos, entrenamiento de modelos e inferencia en producción.
 

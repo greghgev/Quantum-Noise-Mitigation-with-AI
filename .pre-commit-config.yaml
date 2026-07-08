@@ -21,4 +21,7 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
         args: ["--maxkb=500"]
+        # Excepciones: PDFs de la bibliografía y notebooks con gráficas embebidas
+        # (el notebook 01 pesa ~574KB precisamente por los outputs que debe enseñar)
+        exclude: '^doc/SOTA/papers/.*\.pdf$|\.ipynb$'
       - id: detect-private-key

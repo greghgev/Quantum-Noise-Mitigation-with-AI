@@ -11,9 +11,9 @@
 ## IDEA-1 — Evaluación cross-device (múltiples QPUs de IBM)
 
 **Qué es:**
-El TFM se entrena y evalúa únicamente en `ibm_kyiv` (Eagle r3, 127 qubits, Heavy-Hex). Los papers del SOTA (Q-Cluster, GTraQEM, QEMFormer) testean en 3-5 QPUs distintas para demostrar que el modelo no está sobreajustado a una sola máquina.
+El TFM se entrena y evalúa únicamente en `ibm_kingston` (Heron r2, 156 qubits). Los papers del SOTA (Q-Cluster, GTraQEM, QEMFormer) testean en 3-5 QPUs distintas para demostrar que el modelo no está sobreajustado a una sola máquina.
 
-Una extensión natural sería evaluar el modelo entrenado en `ibm_kyiv` directamente en `ibm_brisbane` (misma familia Eagle r3) o `ibm_torino` (Heron r1, arquitectura diferente) sin reentrenamiento.
+Una extensión natural sería evaluar el modelo entrenado en `ibm_kingston` directamente en `ibm_pittsburgh` (Heron r3, revisión más nueva) o en un backend Nighthawk (topología cuadrada, arquitectura diferente) sin reentrenamiento.
 
 **Por qué es valiosa:**
 - Q-Cluster demostró empíricamente que un ExtraTrees entrenado en Eagle generaliza a Heron con R²=0.886 sin reentrenamiento. Si el GEM del TFM tiene propiedades similares, sería un resultado fuerte.
@@ -46,7 +46,7 @@ Alto. Requiere:
 4. Revisitar la validación del ground truth (ya no es Statevector exacto — es una aproximación).
 
 **Respaldo en la literatura:**
-Liao et al. 2024 [Nature MI], Liao et al. 2025 [npj QI], Placidi et al. ⚠️ [arXiv:2601.14226], Korolev et al. ⚠️ [arXiv:2606.02697].
+Liao et al. 2024 [Nature MI], Liao et al. 2025 [npj QI], Placidi et al. ⚠️ [arXiv:2601.14226].
 
 ---
 
@@ -81,7 +81,7 @@ Placidi et al. (Quantinuum) demuestran que preentrenamiento en simulador + fine-
 
 **Coste:**
 Medio. La arquitectura no cambia. Solo requiere:
-1. Generar un dataset pequeño real (50-100 circuitos en `ibm_kyiv`).
+1. Generar un dataset pequeño real (50-100 circuitos en `ibm_kingston`).
 2. Un bucle de fine-tuning con learning rate bajo.
 3. Verificar que no hay overfitting a los pocos datos reales (early stopping).
 

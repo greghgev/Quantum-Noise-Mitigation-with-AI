@@ -1,6 +1,16 @@
 # TFM-Quantum: Mitigación de Ruido Cuántico mediante Deep Learning
 
-Pipeline de Deep Learning para mitigación integral de errores en hardware cuántico NISQ (IBM Eagle, 127 qubits). Separa el ruido de puertas lógicas (dinámico, pre-ejecución) del ruido de lectura (estocástico, post-ejecución) mediante dos módulos especializados entrenados de forma desacoplada.
+## La idea en 30 segundos
+
+Los ordenadores cuánticos actuales se equivocan en cada operación, como una calculadora imprecisa. Este TFM entrena dos modelos de deep learning para **limpiar ese error sin ejecutar el cálculo más veces**: el primero **predice cuánto se equivocará la máquina antes de ejecutar** (leyendo el "parte médico" diario del chip y el diseño del circuito), y el segundo corrige el error del sensor de lectura después. El resultado corregido se obtiene con una sola ejecución, cuando las técnicas clásicas necesitan decenas.
+
+> 👤 **¿Primera vez en el proyecto?** Empieza por **[GUIA_TUTOR.md](GUIA_TUTOR.md)** — el recorrido completo sin tecnicismos, con el estado actual y el mapa de lectura.
+
+---
+
+## Descripción técnica
+
+Pipeline de Deep Learning para mitigación integral de errores en hardware cuántico NISQ (IBM Heron r2, 156 qubits). Separa el ruido de puertas lógicas (dinámico, pre-ejecución) del ruido de lectura (estocástico, post-ejecución) mediante dos módulos especializados entrenados de forma desacoplada.
 
 ---
 
@@ -40,7 +50,7 @@ TFM-Quantum/
 │   ├── gem_config.yaml         # Hiperparámetros GEM (Graph Transformer)
 │   └── rem_config.yaml         # Hiperparámetros REM (GNN + GMRES)
 ├── data/
-│   ├── raw/                    # Calibración IBM (ibm_kyiv_calib.json, historial T1/T2)
+│   ├── raw/                    # Calibración IBM (ibm_kingston_calib.json, historial T1/T2)
 │   └── processed/
 │       ├── train/              # Circuitos random, HEA, Trotterized TFIM (días 1–7)
 │       ├── val/                # In-distribution validation (día 6 OOD temporal)
@@ -49,10 +59,12 @@ TFM-Quantum/
 │       └── zeroshot_qft/       # QFT  — nunca visto en entrenamiento (contribución original)
 ├── doc/
 │   ├── SOTA/
-│   │   ├── comparative_analysis.md   # Análisis comparativo de 13 papers vs decisiones TFM
+│   │   ├── papers/                   # Los 14 PDFs de la bibliografía analizada
+│   │   ├── comparative_analysis.md   # Análisis comparativo de 14 papers vs decisiones TFM
 │   │   ├── TFM-SOTA-Parte1.pdf
 │   │   └── TFM-SOTA-Parte2.pdf
 │   ├── dataset_info.md               # Decisiones de dataset y métricas
+│   ├── migracion_heron.md            # Migración forzosa Eagle → Heron (jul 2026) y sus consecuencias
 │   ├── src_info.md                   # Documentación de src/
 │   ├── notebooks_info.md             # Guía de notebooks
 │   └── fallas_y_soluciones.md        # Bugs conocidos y soluciones
@@ -67,6 +79,8 @@ TFM-Quantum/
 │   └── 05_final_pipeline_tradeoffs.ipynb       # Pipeline completo + ablación 70/30/80/20/90/10
 ├── scripts/                    # Entry-points ejecutables (importan de src/)
 │   ├── generate.py             # Genera el dataset (--mini o --full)
+│   ├── make_synthetic_calib.py # Calibración sintética Heron (mientras no hay credenciales IBM)
+│   ├── make_pipeline_figure.py # Genera figures/pipeline_tfm.png
 │   ├── train_gem.py            # Entrena el GEM
 │   ├── train_rem.py            # Entrena el REM
 │   └── evaluate.py             # Evalúa el pipeline completo por split
@@ -79,7 +93,8 @@ TFM-Quantum/
 │   ├── train.py                # Entrenamiento desacoplado GEM/REM + MLflow + normalización Δ
 │   ├── inference.py            # Pipeline producción: GEM → QPU → REM
 │   └── utils.py                # Métricas, GMRES wrapper, encodings
-├── .env                        # IBM_TOKEN + IBM_INSTANCE_CRN (no versionado)
+├── .env                        # IBM_TOKEN + IBM_INSTANCE_CRN + IBM_BACKEND_NAME (no versionado)
+├── GUIA_TUTOR.md               # Puerta de entrada sin tecnicismos (empieza aquí)
 ├── .gitignore
 ├── .pre-commit-config.yaml     # black + flake8 + checks automáticos
 ├── .dvcignore
@@ -99,7 +114,7 @@ TFM-Quantum/
 
 | Tipo | Split | Descripción |
 |------|-------|-------------|
-| Random | Train (40%) | Circuitos aleatorios sobre el coupling map de ibm_kyiv |
+| Random | Train (40%) | Circuitos aleatorios sobre el coupling map de ibm_kingston |
 | HEA | Train (40%) | Hardware-Efficient Ansatz — bloques Ry+CNOT por capa |
 | Trotterized TFIM | Train (20%) | Transverse-Field Ising Model — benchmark estándar QEM-Bench |
 | QAOA | **Zero-shot A** | Nunca en entrenamiento — reservado para test de generalización |
@@ -210,7 +225,8 @@ conda run -n tfm python scripts/evaluate.py \
 
 ## Hardware objetivo
 
-- **Dispositivo**: `ibm_kyiv` — familia Eagle, 127 qubits, topología Heavy-Hex
+- **Dispositivo**: `ibm_kingston` — familia **Heron r2**, 156 qubits, puerta 2q nativa **CZ**. Accesible en Open Plan.
+  - El backend original del proyecto era `ibm_kyiv` (Eagle r3); IBM retiró toda la familia Eagle entre 2023 y abril de 2026, forzando la migración.
 - **Canal IBM**: `ibm_quantum_platform` (nuevo, no el deprecated `ibm_quantum`)
 - **Validación real**: 20–30 circuitos en hardware real para medir la brecha simulation-to-real (TAREA 6)
 
@@ -218,8 +234,9 @@ conda run -n tfm python scripts/evaluate.py \
 
 ## Referencias clave
 
-- **GTraQEM** — Bao et al., ICLR 2025: Graph Transformer con nodo QCR para mitigación pre-ejecución
-- **QEMFormer** — Nguyen et al., NeurIPS 2024: Transformer post-ejecución sobre distribución de bitstrings
-- **Concept Drift step-like** — Hirasaki et al., APL 2023: Evidencia empírica de saltos abruptos en calibración IBM
-- **Q-Cluster** — Benchmark de clustering de circuitos cuánticos
-- Lista completa de 13 papers en `doc/SOTA/comparative_analysis.md`
+- **GTraQEM** — Bao et al., ICLR 2025: Graph Transformer con nodo QCR (baseline arquitectónico del GEM)
+- **QEMFormer + QEM-Bench** — Bao et al., ICML 2025: el SOTA a superar; benchmark estándar del campo
+- **M3** — Nation et al. (IBM), PRX Quantum 2021: mitigación de readout matrix-free (fundamento del REM)
+- **Concept Drift** — Hirasaki et al., APL 2023 (evidencia física) + Huo et al., SIGMETRICS 2026 (evidencia operacional)
+- **Q-Cluster** — Patil et al., IEEE QCE 2025: paradigma no supervisado de contraste
+- Lista completa de 14 papers en `doc/SOTA/comparative_analysis.md`

@@ -38,9 +38,9 @@ Circuito usuario → GEM predice Δ → Ejecución en IBM QPU → REM limpia his
 |---|---|
 | Python | 3.10 |
 | Conda env | `tfm` (ver `environment.yml`) |
-| Qiskit | `1.0.2` |
-| qiskit-aer | `>=0.14.0` |
-| qiskit-ibm-runtime | `0.21.1` |
+| Qiskit | `2.4.1` (migrado desde 1.0.2 — APIs deprecated sustituidas) |
+| qiskit-aer | `0.17.2` |
+| qiskit-ibm-runtime | `0.47.0` |
 | PyTorch | latest (sin pin de versión) |
 | torch-geometric | latest (canal `pyg`) |
 | SciPy | sin pin — crítico para GMRES (`scipy.sparse.linalg`) |
@@ -60,7 +60,7 @@ TFM-Quantum/
 │   ├── gem_config.yaml         # Hiperparámetros GEM (Graph Transformer + QCR)
 │   └── rem_config.yaml         # Hiperparámetros REM (GNN + GMRES)
 ├── data/
-│   ├── raw/                    # Calibración IBM (ibm_kyiv_calib.json) — generado en runtime
+│   ├── raw/                    # Calibración IBM (ibm_kingston_calib.json) — generado en runtime
 │   └── processed/              # Grafos .pt listos para PyTorch Geometric
 │       ├── train/              # Random, HEA, TFIM (días 1–5)
 │       ├── val/                # In-distribution validation (día 6)
@@ -73,33 +73,39 @@ TFM-Quantum/
 │   ├── notebooks_info.md       # Guía de notebooks
 │   ├── src_info.md             # Documentación de módulos src/
 │   └── SOTA/
-│       ├── comparative_analysis.md  # Análisis comparativo 13 papers vs TFM
+│       ├── papers/                  # Los 14 PDFs de la bibliografía analizada
+│       ├── comparative_analysis.md  # Análisis comparativo 14 papers vs TFM
 │       ├── TFM-SOTA-Parte1.pdf
 │       └── TFM-SOTA-Parte2.pdf
-├── figures/            # Gráficas (vacío, se genera)
+├── figures/            # pipeline_tfm.png (diagrama divulgativo) + gráficas generadas
 ├── logs/               # Artefactos MLflow (vacío, se genera)
 ├── models/             # Pesos .pt y checkpoints (vacío, se genera)
-├── notebooks/          # 5 notebooks secuenciales (01 al 05)
+├── notebooks/          # 01 ✅ ejecutado (EDA divulgativa) · 02-05 y main.ipynb vacíos (placeholders)
 ├── scripts/            # Entry-points ejecutables (importan de src/, no contienen lógica)
 │   ├── generate.py     # Genera el dataset (--mini 150 muestras | --full 5000)
+│   ├── make_synthetic_calib.py  # Calibración sintética Heron mientras no hay credenciales IBM
+│   ├── make_pipeline_figure.py  # Genera figures/pipeline_tfm.png (diagrama divulgativo)
 │   ├── train_gem.py    # Entrena el GEM con gem_config.yaml
 │   ├── train_rem.py    # Entrena el REM con rem_config.yaml
 │   └── evaluate.py     # Evalúa pipeline completo (--split test|zeroshot_qaoa|zeroshot_qft|all)
 ├── src/                # Código fuente de producción (lógica real — importado por scripts/)
 │   ├── config.py       ✅ COMPLETO
-│   ├── quantum_gen.py  ⚠️  PARCIAL (5 bugs pendientes — ver §7)
+│   ├── quantum_gen.py  ✅ COMPLETO (TAREA 1 + 3 + 3b + 8)
 │   ├── dataset.py      ❌ VACÍO
 │   ├── gem_model.py    ❌ VACÍO
 │   ├── rem_model.py    ❌ VACÍO
 │   ├── train.py        ⚠️  ESQUELETO (solo docstring)
 │   ├── utils.py        ⚠️  ESQUELETO (solo docstring)
 │   └── inference.py    ❌ VACÍO
+├── tests/
+│   └── test_quantum_gen.py  ✅ 37/37 PASSED
 ├── .dvc/               # Metadata DVC (versionado)
 ├── .dvcignore
-├── .env                # IBM_TOKEN + IBM_INSTANCE_CRN (no subir a git)
+├── .env                # IBM_TOKEN + IBM_INSTANCE_CRN + IBM_BACKEND_NAME (no subir a git)
 ├── .gitignore
 ├── .pre-commit-config.yaml  # black + flake8 + checks automáticos (instalados con pre-commit install)
 ├── ROADMAP.md          # Tareas pendientes y estado del proyecto
+├── GUIA_TUTOR.md       # Puerta de entrada sin tecnicismos: pipeline, estado, mapa de lectura, glosario
 ├── IDEA_GENERAL_TFM.md # Explicación conceptual del TFM: pipeline, diferenciadores, métricas, dataset, decisiones
 ├── IDEAS_FUTURAS.md    # 7 extensiones y mejoras potenciales para trabajo futuro
 ├── environment.yml
@@ -111,14 +117,14 @@ TFM-Quantum/
 ## 4. Estado actual de implementación
 
 ### Completos
-- **`src/config.py`** — Carga `.env`, define rutas (`BASE_DIR`, `RAW_DATA_PATH`, `PROCESSED_DATA_PATH`, `MODELS_PATH`), constantes físicas (`MAX_QUBITS=15`, `MAX_DEPTH=50`, `TRAIN_SHOTS=1024`, `SEED=42`), función `set_global_seeds()`.
+- **`src/config.py`** — Carga `.env`, define rutas (`BASE_DIR`, `RAW_DATA_PATH`, `PROCESSED_DATA_PATH`, `MODELS_PATH`), backend (`BACKEND_NAME=ibm_kingston`, `BASIS_GATES=[cz,id,rz,sx,x]`), constantes físicas (`MAX_QUBITS=15`, `MAX_DEPTH=50`, `LABEL_SHOTS=4096` para etiquetas Δ, `TRAIN_SHOTS=1024` para inputs REM, `SEED=42`), función `set_global_seeds()`.
 
-### Parciales (implementación base lista, bugs pendientes — ver §7)
-- **`src/quantum_gen.py`** ⚠️ — 4 clases implementadas:
-  - `CircuitFactory`: genera circuitos random, QFT, QAOA, HEA; transpila a puertas nativas IBM Eagle. **Pendiente:** añadir generador Trotterized TFIM (TAREA 1).
-  - `HardwareTelemetrics`: descarga/cachea calibración real de `ibm_kyiv`; simula Concept Drift. **Pendiente:** drift step-like (actualmente stub vacío — TAREA 1).
-  - `QuantumGraphExtractor`: convierte circuito + Statevector ideal + telemetría → objeto `Data` de PyTorch Geometric (actualmente 15 dims, **pendiente ampliar a 19** — TAREA 1).
-  - `TFMDatasetPipeline`: orquestador MLOps que genera muestras y las guarda en `data/processed/`. **Pendiente:** split en subcarpetas separadas (train/, val/, test/, zeroshot_qaoa/, zeroshot_qft/) — TAREA 1.
+- **`src/quantum_gen.py`** ✅ COMPLETO (TAREA 1 + TAREA 3 + migración Heron) — 4 clases:
+  - `CircuitFactory`: genera circuitos random, QFT, QAOA (ZZ por arista), HEA, Trotterized TFIM; transpila a puertas nativas IBM Heron (`cz` como 2q).
+  - `HardwareTelemetrics`: descarga/cachea calibración de `ibm_kingston`; drift step-like pre-computado (2–3 saltos ±15–30% en 10 días); `build_noise_model_for_day()` construye NoiseModel por día (despolarización 1q/2q + readout simétrico).
+  - `QuantumGraphExtractor`: circuito + Δ + telemetría → objeto `Data` PyG con 19 dims por nodo, `y = Δ` escalar, `ideal_probs` y `noisy_probs` adjuntos.
+  - `TFMDatasetPipeline`: orquestador con `run()`, routing por split (QAOA/QFT solo zero-shot), seeds independientes por split (sin leakage, TAREA 8), simulación Aer ruidosa (`method='statevector'`, `LABEL_SHOTS`).
+- **`tests/test_quantum_gen.py`** ✅ — 37/37 PASSED (calibración falsa en tmp_path, sin conexión IBM; incluye test de regresión anti-leakage).
 
 ### Pendientes (vacíos o esqueleto)
 - **`src/dataset.py`** — Clases `Dataset` de `torch_geometric.data` para cargar los `.pt` en DataLoaders.
@@ -127,8 +133,12 @@ TFM-Quantum/
 - **`src/train.py`** — Bucles de entrenamiento desacoplados, integración MLflow/W&B.
 - **`src/utils.py`** — Fidelidad cuántica, One-Hot Encodings, llamadas GMRES, operadores unitarios.
 - **`src/inference.py`** — Pipeline de producción: GEM → QPU → REM → ajuste final.
-- **Todos los notebooks** (01–05) — Pendientes de implementar.
-- **`data/raw/`** y **`data/processed/`** — Vacíos; se generan ejecutando `TFMDatasetPipeline`.
+- **Notebooks 02–05** — Pendientes de implementar (0 bytes). `main.ipynb` es un placeholder vacío (era de pruebas).
+  - **Notebook 01** ✅ COMPLETO — EDA divulgativa ejecutada (circuito dibujado, DAG coloreado, heatmap de drift, franja de shot-noise, conclusiones sobre outputs reales).
+
+### Datos actuales
+- **`data/raw/`** — `ibm_kingston_calib.json` sintético [SUPOSICIÓN] (regenerar con calibración real al tener credenciales).
+- **`data/processed/`** — mini-dataset Heron: 178 muestras con los fixes de TAREA 8 (sin leakage, verificado), versionado en DVC. Señal Δ: train ratio señal/ruido 2.7×; zero-shot aún bajo el suelo de shot-noise a 4096 shots (subir `LABEL_SHOTS` en el full run).
 
 ---
 
@@ -148,17 +158,19 @@ TFM-Quantum/
 
 ### MLOps: DVC + pre-commit + scripts/
 
-- **DVC** versiona datasets y modelos grandes (`.pt`, `ibm_kyiv_calib.json`). Remote local en `~/TFM/dvc-remote/`. Inicializado: `dvc init` ya ejecutado. Comandos habituales: `dvc add data/processed/` → `dvc push`.
+- **DVC** versiona datasets y modelos grandes (`.pt`, `ibm_kingston_calib.json`). Remote local en `~/TFM/dvc-remote/`. Inicializado: `dvc init` ya ejecutado. Comandos habituales: `dvc add data/processed/` → `dvc push`.
 - **pre-commit hooks** instalados (`pre-commit install` ya ejecutado). En cada `git commit` se ejecutan automáticamente: `black` (formateo), `flake8 --max-line-length=100` (linting), trailing whitespace, YAML check, detección de claves privadas, y bloqueo de ficheros >500 KB.
 - **`scripts/` vs `src/`**: `src/` contiene toda la lógica (clases, funciones, modelos). `scripts/` son entry-points delgados que importan de `src/` y orquestan el pipeline. **Nunca añadir lógica de negocio directamente en `scripts/`**.
 - **Configs YAML**: toda configuración de hiperparámetros va en `configs/gem_config.yaml` y `configs/rem_config.yaml`. Los scripts los leen con `yaml.safe_load`. Nunca hardcodear hiperparámetros en código.
 
 ### Credenciales IBM
 - **Canal:** `"ibm_quantum_platform"` — es el canal moderno (Open Plan + Plan de pago). **NO** usar `"ibm_quantum"` (legacy, deprecado).
-- **Backend objetivo:** `ibm_kyiv` (familia Eagle, 127 qubits, topología Heavy-Hex).
+- **Backend objetivo:** `ibm_kingston` (familia **Heron r2**, 156 qubits, accesible en Open Plan). Configurable vía `IBM_BACKEND_NAME` en `.env`.
+  - **Historia:** el backend original era `ibm_kyiv` (Eagle r3, 127q, Heavy-Hex), retirado por IBM el 18-abr-2025. Toda la familia Eagle está retirada desde abr-2026 — no existe alternativa Eagle.
 - **Token:** variable `IBM_TOKEN` en `.env`.
 - **CRN de instancia:** variable `IBM_INSTANCE_CRN` en `.env`. Se pasa como `instance=` al construir `QiskitRuntimeService`.
-- **Caché de calibración:** `data/raw/ibm_kyiv_calib.json` — si existe, se carga offline; si no, se descarga de IBM y se guarda.
+  - ⚠️ Estado jul-2026: cuenta IBM antigua sin instancias (expiró); cuenta nueva pendiente de verificación por IBM (error tarjeta → email a verify@us.ibm.com enviado). Hasta entonces se usa calibración sintética.
+- **Caché de calibración:** `data/raw/ibm_kingston_calib.json` — si existe, se carga offline; si no, se descarga de IBM y se guarda. La actual es **SINTÉTICA** (generada por `scripts/make_synthetic_calib.py` con valores plausibles Heron r2 marcados [SUPOSICIÓN]) — borrarla y relanzar para descargar la real cuando haya credenciales.
 
 ### Decisión arquitectónica GEM: "Trampa del Transpilador" + nodo virtual QCR
 El Graph Transformer **no** reescribe ni modifica el circuito. Solo predice Δ (desviación continua). El circuito se ejecuta intacto para no destruir la unitaria del algoritmo del usuario.
@@ -177,14 +189,16 @@ La GNN predice matrices 2×2 locales por qubit (y opcionalmente 4×4 para vecino
 ### Composición del dataset
 - **~80% circuitos aleatorios** (Random Unitary) — generalizan la física del ruido. La proporción exacta (70/30, 80/20, 90/10 random/estructurados) se **ablacionará** durante la fase de entrenamiento y se elegirá según rendimiento en validación. Sin precedente empírico fijo en la literatura.
 - **~20% estructurados (en entrenamiento):**
-  - **HEA** (Hardware-Efficient Ansatz, `TwoLocal`, Ry+CX, `reps=2`) — sustituye a Grover, profundidad O(reps×n). Benchmark estándar VQE.
+  - **HEA** (Hardware-Efficient Ansatz, capas Ry+CX construidas manualmente — `TwoLocal` deprecated en Qiskit 2.x, `reps=2`) — sustituye a Grover, profundidad O(reps×n). Benchmark estándar VQE.
   - **Trotterized TFIM** (simulación de Hamiltoniano Ising con campo transverso) — benchmark estándar de QEM-Bench (QEMFormer, ICML 2025). Permite comparación directa con el SOTA.
 - **Zero-shot (NUNCA en entrenamiento):** QAOA y QFT se reservan exclusivamente para evaluación zero-shot. Si el modelo generaliza a ellos sin haberlos visto, demuestra que aprendió física de ruido, no patrones de circuitos. QFT es **contribución original**: ningún paper de ML-QEM lo evalúa sistemáticamente.
 - Qubits por circuito: 5–15 (límite RAM: Statevector de >15 qubits → OOM en 16 GB).
 - Profundidad: 5–50 capas.
 
-### Puertas nativas IBM Eagle
-`['cx', 'id', 'rz', 'sx', 'x']` — `CircuitFactory` transpila todos los circuitos a este conjunto base.
+### Puertas nativas IBM Heron
+`['cz', 'id', 'rz', 'sx', 'x']` — `CircuitFactory` transpila todos los circuitos a este conjunto base (definido en `src/config.py` como `BASIS_GATES`).
+
+**Diferencia clave vs. Eagle:** la puerta 2-qubit nativa es **CZ** (controlled-Z, simétrica), no CX. Los generadores construyen la lógica con CX (convención estándar) y el transpilador la convierte. En el one-hot del feature vector, la posición 0 es `cz`. Para CZ no existe control/target físico — por convención control=qargs[0], target=qargs[1].
 
 ### Métricas de evaluación
 
@@ -211,32 +225,34 @@ Todas las métricas se reportan separadas por: in-distribution / zero-shot QAOA 
 
 | # | Feature | Dims | Estado |
 |---|---|---|---|
-| 1 | One-Hot tipo de puerta (`cx`,`id`,`rz`,`sx`,`x`,`measure`) | 6 | ✅ Implementado |
+| 1 | One-Hot tipo de puerta (`cz`,`id`,`rz`,`sx`,`x`,`measure`) | 6 | ✅ Implementado |
 | 2 | Ángulos paramétricos θ, φ, λ (padding a 0.0 si no aplica) | 3 | ✅ Implementado |
 | 3 | T1, T2, readout_error del **qubit control** | 3 | ✅ Implementado |
-| 4 | gate_error del qubit control (tasa empírica de error de la puerta) | 1 | ❌ Pendiente TAREA 1 |
-| 5 | gate_length del qubit control (duración del pulso en segundos) | 1 | ❌ Pendiente TAREA 1 |
-| 6 | T1, T2, readout_error del **qubit target** (zero-pad [0,0,0] para puertas 1q) | 3 | ⚠️ Implementado con copia en lugar de zero-pad — corregir en TAREA 1 |
-| 7 | day_index normalizado (`day / 10.0`) — señal explícita de Concept Drift | 1 | ❌ Pendiente TAREA 1 |
-| 8 | depth_position normalizado (`pos / depth_total`) — decoherencia acumulada | 1 | ❌ Pendiente TAREA 1 |
+| 4 | gate_error del qubit control (tasa empírica de error de la puerta) | 1 | ✅ Implementado |
+| 5 | gate_length del qubit control (duración del pulso en segundos) | 1 | ✅ Implementado |
+| 6 | T1, T2, readout_error del **qubit target** (zero-pad [0,0,0] para puertas 1q) | 3 | ✅ Implementado (zero-pad correcto) |
+| 7 | day_index normalizado (`day / 10.0`) — señal explícita de Concept Drift | 1 | ✅ Implementado |
+| 8 | depth_position normalizado (`pos / depth_total`) — decoherencia acumulada | 1 | ✅ Implementado |
 
-**Total diseñado: 19 dims. Total implementado actualmente: 15 dims.**
+**Total: 19 dims — diseño completo implementado y verificado por tests (TAREA 1).** Nota Heron: CZ es simétrica; "control"=qargs[0], "target"=qargs[1] por convención del transpilador.
 
 Nota: `gate_error` y `gate_length` son estándar en la literatura (QuESt [Wang et al., 2022, ICCAD], GTraQEM [Bao et al., 2025, ICLR]) y disponibles vía `backend.properties()` de IBM.
 
 ---
 
-## 7. Bugs conocidos pendientes (TAREA 1)
+## 7. Estado de bugs y limitaciones conocidas
 
-1. **`HardwareTelemetrics.build_noise_model_for_day()` es un stub vacío** (`quantum_gen.py:174`): siempre devuelve `self.noise_model` sin aplicar `day_index`. Requiere implementar drift **step-like** (2–3 saltos aleatorios de ±15–30% en T1/T2/readout_error repartidos aleatoriamente en la línea temporal de 10 días). El decay lineal previo está descartado — Hirasaki et al. (APL 2023) demuestra empíricamente que el drift en IBM es escalonado, no gradual.
+**Los 5 bugs de TAREA 1 están corregidos** (ver ROADMAP.md). Limitaciones activas:
 
-2. **Operador QAOA trivial** (`quantum_gen.py:76`): `SparsePauliOp("Z" * num_qubits)` genera un único término diagonal `Z⊗Z⊗...⊗Z` sin entrelazamiento. Un QAOA realista usa suma de términos `ZZ` entre qubits vecinos del coupling map. Los circuitos actuales no estresan el crosstalk como documenta `dataset_info.md`.
+1. **Calibración sintética (no real):** `data/raw/ibm_kingston_calib.json` está generado por `scripts/make_synthetic_calib.py` con valores plausibles Heron r2 marcados [SUPOSICIÓN] (20 qubits, cadena lineal). Cuando la cuenta IBM esté verificada: borrar el JSON, relanzar `HardwareTelemetrics` para descargar calibración real, y regenerar el dataset.
 
-3. **`data/raw/` vacío:** La primera ejecución de `HardwareTelemetrics` necesita conexión activa a IBM Quantum (token + CRN válidos en `.env`) para descargar y cachear `ibm_kyiv_calib.json`. Sin ese archivo el pipeline no arranca.
+2. **Noise model solo despolarización:** `thermal_relaxation_error` + `depolarizing_error` combinados producen "Kraus is empty" en Aer 0.17. Se usa solo despolarización; el efecto T1/T2 se modela implícitamente vía drift del gate_error. Documentado en `build_noise_model_for_day()`.
 
-4. **`coupling_map` serialización tuplas vs. listas:** `backend.coupling_map.get_edges()` devuelve tuplas; al cargar desde JSON se recuperan como listas anidadas. Verificar compatibilidad de tipos en el primer uso post-descarga.
+3. **[SUPOSICIÓN] Error CZ ≈ 5× error 1q promedio** de los dos qubits del par — ratio típico NISQ, no dado por la API de calibración. Ver `_populate_noise_model()`.
 
-5. **Vector de features incompleto — 15 dims en lugar de 19:** Faltan `gate_error`, `gate_length`, `day_index` y `depth_position`. Además, puertas de 1 qubit usan copia de features en lugar de zero-pad. Ver tabla en §6.
+4. **Readout simétrico:** P(0→1) = P(1→0). IBM real es asimétrico — mejora planificada en TAREA 7a (feature vector pasaría a 20 dims).
+
+5. **`coupling_map` serialización tuplas vs. listas:** `backend.coupling_map.get_edges()` devuelve tuplas; al cargar desde JSON se recuperan como listas anidadas. Sin impacto detectado (el código itera con desempaquetado), pero verificar en la primera descarga real de Heron.
 
 ---
 
@@ -273,10 +289,6 @@ Nota: `gate_error` y `gate_length` son estándar en la literatura (QuESt [Wang e
   **Argumento diferenciador del TFM vs. QEMFormer:** (1) QEMFormer requiere P_noisy como input — necesita ejecutar el circuito antes de mitigar; nuestro GEM opera PRE-ejecución con solo telemetría del hardware → paradigma más eficiente operacionalmente. (2) QEMFormer usa multi-hot qubit encoding (no generalizable a N arbitrario); nuestro vector no codifica identidad de qubit → más generalizable. (3) QEMFormer no modela Concept Drift temporal; nuestro day_index es feature explícito. (4) El TFM separa ruido de puertas (GEM) y de lectura (REM) — QEMFormer los confunde en un solo predictor.
   **Nota GTraQEM:** GTraQEM sigue siendo referencia válida de arquitectura base (Graph Transformer + nodo virtual QCR). QEMFormer es el nuevo techo de rendimiento a superar.
 
-### Hardware forensics — contexto SOTA §3 ⚠️ [PREPRINT — arXiv:2512.14541, Penn State, sin publicar]
-- **Das, Ghosh, Ghosh (Penn State) — arXiv:2512.14541, Dic 2025.** "A Graph-Based Forensic Framework for Inferring Hardware Noise of Cloud Quantum Backend."
-  GraphSAGE para inferir tasas de error de hardware a partir de topología + estadísticas de transpilación (sin acceso a calibración directa). Features de topología: betweenness centrality, k-core, harmonic centrality. Spearman ρ=0.98 (nodos), 0.96 (aristas). Objetivo diferente al TFM (forense vs. mitigación). Relevante para §3 SOTA como contexto de caracterización de hardware. *(Penn State. Marcado como conference submission sin venue identificada. Sin DOI de revista en el momento de verificación.)*
-
 ---
 
 ## Referencias — Módulo REM y Readout Error Mitigation
@@ -295,11 +307,25 @@ Nota: `gate_error` y `gate_length` son estándar en la literatura (QuESt [Wang e
 
 ---
 
+## Referencias — Paradigma pre-ejecución relacionado (selección/ranking, NO mitigación)
+
+### Herramienta nativa de IBM para pre-ejecución ✅ [REVISADO — PRX Quantum 2023] — related work obligatorio
+- **Nation & Treinish (IBM) — PRX Quantum 4, 010327, 2023.** "Suppressing Quantum Circuit Errors Due to System Variability" (herramienta: **mapomatic**, qiskit-community).
+  Puntúa layouts isomorfos ANTES de ejecutar con la calibración del día (heurística: producto de fidelidades; sin ML) y elige el mejor. Reconoce como limitaciones: crosstalk ignorado y calibración desactualizada. **Diferencia con el GEM:** score heurístico relativo para ELEGIR vs. predicción aprendida de Δ para CORREGIR. Citar en §3: demuestra que IBM ve valor en el pre-ejecución pero solo lo cubre heurísticamente.
+
+### Ranking ML pre-ejecución ✅ [REVISADO — Quantum 8, 1542, 2024] — el precedente más cercano a la "Capacidad 1" del GEM
+- **Hartnett, Barbosa, Mundada, Hush et al. (Q-CTRL) — Quantum 8, 1542, nov-2024.** "Learning to rank quantum circuits for hardware-optimized performance enhancement." arXiv:2404.06535.
+  ML entrenado en hardware IBM real que rankea circuitos equivalentes pre-ejecución (selección de layout): fidelidades de layouts equivalentes difieren hasta 10×; su modelo mejora la selección 1.8× vs. heurística. **Diferencias con el GEM:** (1) rankea variantes del mismo circuito, no arbitrarios; (2) predice orden, no la magnitud Δ (no permite corregir); (3) modelo fenomenológico, no grafo+telemetría; (4) sin drift temporal. Ver análisis completo en `doc/SOTA/comparative_analysis.md` §13.
+
 ## Referencias — Concept Drift y Variabilidad Temporal
 
 ### Evidencia empírica directa del Concept Drift cuántico ✅ [REVISADO — Applied Physics Letters 2023]
 - **Hirasaki, Daimon, Itoko, Kanazawa, Saitoh — Applied Physics Letters 123, 184002, 2023.** "Detection of temporal fluctuation in superconducting qubits for quantum error mitigation." DOI: 10.1063/5.0166739 *(Kanazawa = IBM Research, desarrollador Qiskit)*
   Observan **cambios abruptos tipo step en las tasas de error** de qubits superconductores, que se repiten múltiples veces y persisten durante varios minutos cada uno. No es drift gradual — son saltos discretos. Proponen post-selection basado en correlaciones entre varianza del output y error elevado. **Relevancia directa para el TFM:** es la evidencia empírica que motiva el `day_index` como feature explícito del Concept Drift. Citar en §3 al justificar la estrategia de split temporal OOD.
+
+### Variabilidad operacional temporal/espacial ✅ [REVISADO — SIGMETRICS 2026, aceptado]
+- **Huo, Leeds, Ludmir, DiBrita, Patel (Rice University) — Proceedings of ACM SIGMETRICS 2026 (arXiv:2510.06172).** "Anchor: Reducing Temporal and Spatial Output Performance Variability on Quantum Computers."
+  Ejecutar el mismo programa en momentos o regiones distintas del chip produce resultados inconsistentes en QPUs NISQ; su técnica de programación lineal reduce la variabilidad un 73% de media. **Relevancia para el TFM:** complementa a Hirasaki — evidencia OPERACIONAL (impacto en outputs del usuario) frente a la evidencia FÍSICA (saltos en tasas de error). Citar ambos juntos al motivar `day_index` y el split temporal OOD en §3.
 
 ---
 
@@ -308,7 +334,3 @@ Nota: `gate_error` y `gate_length` son estándar en la literatura (QuESt [Wang e
 ### QEM no supervisado — contraste de paradigma ✅ [REVISADO — IEEE QCE 2025]
 - **Patil, Baron, Zhou — IEEE QCE 2025, pp. 849-860.** "Q-Cluster: Quantum Error Mitigation Through Noise-Aware Unsupervised Learning." DOI: 10.1109/QCE65121.2025.00097
   Clustering de bitstrings ruidosos por distancia Hamming → centroides via mayoría qubit-a-qubit → ajuste de distribución por inferencia Bayesiana. ExtraTrees regressor para estimar tasas de error efectivas desde calibración + features del circuito. 1.46× mejora de fidelidad media sobre output sin mitigar. Validado en 5 QPUs IBM. **Contraste con TFM:** paradigma no supervisado (sin Statevector ground truth) vs. nuestro supervisado. La ausencia de datos etiquetados es ventaja operacional pero limita la capacidad de corrección para ruido no-lineal complejo. Útil para §3 SOTA como comparativa de paradigmas.
-
-### QEM para algoritmos variacionales (VQE/QAOA) ⚠️ [PREPRINT — arXiv:2606.02697, Russian Quantum Center]
-- **Korolev et al. (Russian Quantum Center) — arXiv:2606.02697, Jun 2026.** "Machine Learning-based Quantum Error Mitigation for Variational Algorithms."
-  Propone un modelo ML ligero (no-GNN) entrenado en near-Clifford circuits para mitigar ruido en circuitos variacionales parametrizados (VQE, QAOA). Demuestra que near-Clifford training generaliza a VQE con parámetros lejanos de 0/π. No diseñado para circuitos arbitrarios — es específico del paradigma variacional. Testado en hardware IBM. **Relevancia para el TFM:** (1) refuerza near-Clifford circuits como estrategia de training escalable (también usada por Liao 2024/2025 y Placidi); (2) el 20% de circuitos estructurados del TFM (HEA/VQE + QAOA) hace al modelo directamente comparable con este trabajo. *(Russian Quantum Center. Preprint sin peer review confirmado al momento de verificación.)*

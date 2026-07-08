@@ -114,7 +114,9 @@ El GEM solo aprende el error de puertas (REM desactivado durante su entrenamient
 ## 4. Dataset — decisiones de diseño
 
 ### Hardware objetivo
-IBM Eagle family, 127 qubits, topología Heavy-Hex. Subgrafos de 5 a 15 qubits (límite impuesto por la memoria RAM necesaria para calcular el ground truth con Statevector).
+IBM Heron r2 (`ibm_kingston`), 156 qubits, puerta 2-qubit nativa CZ. Subgrafos de 5 a 15 qubits (límite impuesto por la memoria RAM necesaria para calcular el ground truth con Statevector).
+
+> Nota: el proyecto arrancó sobre IBM Eagle (`ibm_kyiv`, 127q, Heavy-Hex), pero IBM retiró toda la familia Eagle entre 2023 y abril de 2026. La migración a Heron se documenta en ROADMAP.md (TAREA 3b).
 
 ### Tipos de circuitos y proporciones
 
@@ -202,7 +204,7 @@ Todo el entrenamiento del TFM se realiza con datos de **ruido simulado** (Qiskit
 Para que los resultados del TFM sean creíbles, se planifica una validación mínima en hardware IBM real:
 
 - **Número de circuitos:** 20-30 circuitos de distintos tipos y profundidades.
-- **Objetivo:** comprobar si el modelo entrenado con datos simulados generaliza al ruido real de `ibm_kyiv`.
+- **Objetivo:** comprobar si el modelo entrenado con datos simulados generaliza al ruido real de `ibm_kingston`.
 - **Resultado esperado si generaliza:** el MAE en hardware real es comparable al MAE en test simulado → el pipeline de simulación es suficientemente fiel.
 - **Resultado si no generaliza:** se documenta como limitación en §6 del TFM y se propone fine-tuning con datos reales como trabajo futuro.
 
