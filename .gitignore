@@ -27,8 +27,9 @@ wandb/
 *.log
 
 # --- Datasets y Modelos (Pesados) ---
-# No subimos datos crudos ni modelos entrenados a GitHub (usa DVC o MLflow Artifacts)
-data/
+# Los archivos .dvc se rastrean en Git; los datos reales se versioanan en DVC remote
+data/raw/
+data/processed/
 models/*.pt
 models/*.pth
 *.onnx
