@@ -5,6 +5,7 @@ Uso:
     conda run -n tfm python scripts/train_gem.py
     conda run -n tfm python scripts/train_gem.py --config configs/gem_config.yaml
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -12,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.config import set_global_seeds
+from src.config import set_global_seeds  # noqa: E402
 
 
 def main():
@@ -26,6 +27,7 @@ def main():
     args = parser.parse_args()
 
     import yaml
+
     with open(ROOT / args.config) as f:
         cfg = yaml.safe_load(f)
 

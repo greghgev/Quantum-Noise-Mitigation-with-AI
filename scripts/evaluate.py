@@ -8,6 +8,7 @@ Reporta todas las métricas:
 Uso:
     conda run -n tfm python scripts/evaluate.py --gem models/gem_best.pt --rem models/rem_best.pt
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -15,13 +16,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.config import set_global_seeds, PROCESSED_DATA_PATH
+from src.config import set_global_seeds  # noqa: E402
 
 
 def main():
     parser = argparse.ArgumentParser(description="Evalúa el pipeline GEM + REM")
-    parser.add_argument("--gem", type=str, required=True, help="Path al checkpoint del GEM (.pt)")
-    parser.add_argument("--rem", type=str, required=True, help="Path al checkpoint del REM (.pt)")
+    parser.add_argument(
+        "--gem", type=str, required=True, help="Path al checkpoint del GEM (.pt)"
+    )
+    parser.add_argument(
+        "--rem", type=str, required=True, help="Path al checkpoint del REM (.pt)"
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--split",

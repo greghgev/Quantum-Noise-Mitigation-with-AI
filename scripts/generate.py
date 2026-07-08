@@ -5,6 +5,7 @@ Uso:
     conda run -n tfm python scripts/generate.py --mini
     conda run -n tfm python scripts/generate.py --full
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -12,8 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.config import set_global_seeds, PROCESSED_DATA_PATH
-from src.quantum_gen import TFMDatasetPipeline
+from src.config import set_global_seeds, PROCESSED_DATA_PATH  # noqa: E402
+from src.quantum_gen import TFMDatasetPipeline  # noqa: E402
 
 
 def main():
@@ -39,7 +40,9 @@ def main():
     n_samples = 150 if args.mini else 5000
     days = [1, 2] if args.mini else list(range(1, 11))
 
-    print(f"[generate] Modo: {'mini' if args.mini else 'full'} | Muestras: {n_samples} | Días: {days}")
+    print(
+        f"[generate] Modo: {'mini' if args.mini else 'full'} | Muestras: {n_samples} | Días: {days}"
+    )
 
     pipeline = TFMDatasetPipeline()
     pipeline.run(n_samples=n_samples, days=days)

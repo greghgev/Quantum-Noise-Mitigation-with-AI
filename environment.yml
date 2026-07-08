@@ -17,21 +17,22 @@ dependencies:
   - cmake        # Necesario para compilar extensiones de Qiskit Aer
   - pip:
       # --- Quantum Core ---
-      - qiskit==1.0.2
-      - qiskit-aer>=0.14.0  # Actualizado para compatibilidad total con Qiskit 1.x
-      - qiskit-ibm-runtime==0.21.1
-      
+      - qiskit>=2.0
+      - qiskit-aer>=0.15.0  # 0.15+ requerido para qiskit 2.x (0.14.x es incompatible)
+      - qiskit-ibm-runtime>=0.40
+
       # --- Machine Learning ---
       - torch
       - torch-geometric  # El motor real para tus grafos y el Transformer
-      
+
       # --- MLOps & Experiment Tracking ---
       - mlflow
       - wandb
-      
+
       # --- Utilities ---
       - python-dotenv
       - tqdm
+      - pylatexenc  # Requerido por qc.draw('mpl') en los notebooks
       - pylint
       - black
       - flake8
