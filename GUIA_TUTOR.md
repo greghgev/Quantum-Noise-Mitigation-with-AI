@@ -80,30 +80,7 @@ Si dispones de **una hora**:
 4. `ROADMAP.md` — el estado detallado de cada tarea, con lo hecho y lo pendiente
 5. `doc/SOTA/comparative_analysis.md` — cada decisión de diseño contrastada con los 12 papers de referencia
 
-## 5. Dónde necesito tu criterio (agenda propuesta para la reunión)
-
-> [BORRADOR — preguntas reales donde estoy atascado, en orden de importancia]
-
-1. **Validación del rumbo general.** He tomado todas las decisiones de diseño
-   apoyándome en papers, pero sin nadie del dominio que me confirme si el conjunto
-   tiene sentido. ¿Ves algún fallo conceptual de base?
-
-2. **Alcance realista.** El plan completo incluye: dos modelos, dataset de 5.000
-   muestras, y validación final en máquina real. Si el tiempo aprieta, ¿qué es lo
-   mínimo defendible ante un tribunal? ¿Qué recortarías primero?
-
-3. **Un problema técnico concreto (calidad de la señal).** Para los circuitos
-   "pequeños", el error real que quiero que el modelo aprenda es más pequeño que
-   el ruido estadístico de mi propio instrumento de medida (es como pesar una
-   carta en una báscula que fluctúa). Tengo un plan (más repeticiones + circuitos
-   más profundos), pero me gustaría contrastarlo.
-
-4. **La dependencia de IBM.** Mientras la cuenta de IBM está en verificación,
-   trabajo con datos de calibración *sintéticos pero realistas* (claramente
-   marcados como suposición en el código). ¿Es aceptable metodológicamente
-   desarrollar así y sustituir por datos reales al final, o lo ves arriesgado?
-
-## 6. Sobre los datos (no están en GitHub)
+## 5. Sobre los datos (no están en GitHub)
 
 La carpeta `data/` (calibración + 178 muestras, ~32 MB) no viaja en el repositorio.
 Dos formas de obtenerla:
@@ -115,7 +92,7 @@ Dos formas de obtenerla:
 En cualquier caso, **no hacen falta los datos para entender el proyecto**: el notebook
 `notebooks/01_eda_ibm_telemetry.ipynb` ya incluye todas las gráficas y outputs incrustados.
 
-## 7. Glosario mínimo
+## 6. Glosario mínimo
 
 | Término | En una línea |
 |---|---|
