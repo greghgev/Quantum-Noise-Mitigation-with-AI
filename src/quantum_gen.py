@@ -278,7 +278,12 @@ class HardwareTelemetrics:
             )
             backend = service.backend(self.backend_name)
             self.noise_model = NoiseModel.from_backend(backend)
-            self.coupling_map = backend.coupling_map.get_edges()
+            # get_edges() devuelve EdgeList (rustworkx), no serializable a JSON →
+            # convertir a listas nativas (riesgo previsto en CLAUDE.md §7,
+            # confirmado en la primera descarga real de ibm_kingston, jul-2026)
+            self.coupling_map = [
+                [int(u), int(v)] for u, v in backend.coupling_map.get_edges()
+            ]
             properties = backend.properties()
             num_qubits = backend.num_qubits
 
