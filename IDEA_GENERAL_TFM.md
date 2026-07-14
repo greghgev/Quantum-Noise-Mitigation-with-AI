@@ -3,6 +3,15 @@
 > Este documento explica en lenguaje claro qué hace el TFM, cómo lo hace, por qué es diferente al estado del arte, y qué decisiones de diseño se han tomado y por qué.
 > Es el documento de referencia conceptual. Los detalles técnicos están en `CLAUDE.md` y `dataset_info.md`.
 
+> ## ⚠️ CAMBIO DE ALCANCE (jul-2026, acordado con el tutor)
+> El TFM se centra **únicamente en el módulo GEM**, planteado como **comparativa de 3 modelos**
+> (Ridge + Random Forest + Graph Transformer) prediciendo el error TOTAL Δ con protocolo de
+> evaluación idéntico. **El módulo REM descrito en este documento pasa a TRABAJO FUTURO** — las
+> secciones que lo mencionan se conservan como documentación del diseño original y de la línea
+> futura. El pipeline vigente es: `Circuito → GEM predice Δ → QPU → ⟨O⟩_mit = ⟨O⟩_noisy − Δ`.
+> Además, cuando la cuenta IBM esté activa, el drift sintético se sustituirá por **calibraciones
+> reales recopiladas a diario** (test temporal con drift auténtico). Ver `ROADMAP.md`.
+
 ---
 
 ## 1. El problema que resuelve el TFM

@@ -55,6 +55,11 @@ El hardware de IBM no se recalibra de forma gradual — las tasas de error cambi
 ## 5. Feature Engineering y Ground Truth
 
 ### Ground Truth (La Variable $Y$)
+
+> **Alcance vigente (jul-2026):** la etiqueta Δ es el **error TOTAL** del circuito
+> (puertas + readout juntos) — con el REM fuera de alcance, la separación de ruidos
+> ya no aporta y el dataset actual es correcto tal cual.
+
 A diferencia de los datos de entrada, el objetivo ideal no se calcula mediante muestreo empírico (*shots*), lo que induciría error estadístico (*Shot Noise*). Se extrae analíticamente usando `qiskit.quantum_info.Statevector` para asegurar precisiones matemáticas perfectas al penalizar la función de pérdida (*Loss Function*).
 
 ### Vectores de Características (La Variable $X$) — 19 dimensiones

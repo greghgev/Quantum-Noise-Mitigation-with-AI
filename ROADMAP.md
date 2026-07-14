@@ -105,30 +105,48 @@ Ver `doc/migracion_heron.md`.
 
 ---
 
-## ⏳ TAREA 4: Implementación de modelos
+## 🔄 CAMBIO DE ALCANCE (jul-2026, acordado con el tutor)
 
-> 🔒 Espera a TAREA 3.
+**Decisión**: el TFM se reduce a **solo el módulo GEM**, planteado como **comparativa de modelos**.
+El REM pasa a trabajo futuro (documentado en `IDEAS_FUTURAS.md`). Razones del tutor: alcance
+original excesivo para el plazo; el GEM solo ya es contribución suficiente (idea poco estudiada +
+arquitecturas novedosas + dataset propio + evaluación comparativa).
 
-- [ ] **Desacoplar el ruido en la generación de datos** (hueco detectado jul-2026: el dataset actual
-      mezcla ruido de puertas + readout en Δ, contradiciendo el diseño de entrenamiento desacoplado):
-  - [ ] Flag `include_readout: bool` en `build_noise_model_for_day()` → regenerar etiquetas GEM
-        con readout DESACTIVADO (solo ruido de puertas)
-  - [ ] Generador de dataset REM: circuitos triviales (preparación de estados base + medida) con
-        SOLO readout activado, `TRAIN_SHOTS=1024`
+**Consecuencias técnicas:**
+1. **Comparativa de 3 modelos** prediciendo Δ: Ridge (regresión lineal clásica) + Random Forest
+   (mejor baseline según Liao 2024) + Graph Transformer (GEM). Baselines tabulares sobre features
+   agregadas del circuito; mismo protocolo de evaluación para los tres.
+2. **Δ pasa a ser el error TOTAL (puertas + readout)** — sin REM, la separación de ruidos ya no
+   aporta. ✅ El dataset actual ya es correcto tal cual: el desacoplamiento pendiente queda ANULADO.
+3. **Drift real**: cuando la cuenta IBM esté activa, recopilar la calibración real diaria (gratis,
+   sin QPU) y usar los días nuevos como test temporal — sustituye al drift sintético [SUPOSICIÓN]
+   como conjunto de validación (idea del tutor, punto 3 de su correo).
+
+---
+
+## ⏳ TAREA 4: Implementación de modelos — comparativa GEM vs. baselines
+
+> 🔒 Espera a TAREA 3. Alcance revisado jul-2026 (ver banner de arriba).
+
+- ~~Desacoplar el ruido en la generación de datos~~ **ANULADO** — con el alcance GEM-only, Δ es el
+  error total y el dataset actual ya es correcto (ver Cambio de Alcance)
 - [ ] Proporciones random/estructurados configurables en `generate_dataset()` (ahora hardcodeadas
-      80/10/10) — necesario para la ablación 70/30–90/10 del notebook 05
-- [ ] `src/dataset.py` — PyG Dataset + DataLoaders (incluir carga separada de in-distribution y zero-shot)
-- [ ] `src/utils.py` — implementar TODAS las métricas:
-  - GEM: MAE, RMSE, R², mejora relativa
-  - REM: Hellinger Fidelity, Total Variation Distance, ratio de mejora HF_mit/HF_noisy
-  - GMRES wrapper, One-Hot encodings
+      80/10/10) — necesario para la ablación 70/30–90/10 del notebook 05 (opcional si falta tiempo)
+- [ ] `src/dataset.py` — PyG Dataset + DataLoaders (carga separada in-distribution / zero-shot)
+- [ ] `src/features.py` — **features agregadas para baselines tabulares**: conteos por tipo de
+      puerta, nº qubits, profundidad, telemetría media/mín/máx de los qubits usados, day_index
+      (estilo global-features de Liao 2024/QEMFormer, citable)
+- [ ] `src/baselines.py` — Ridge + Random Forest (sklearn) con búsqueda ligera de hiperparámetros
+- [ ] `src/utils.py` — métricas GEM: MAE, RMSE, R², mejora relativa (idénticas para los 3 modelos)
 - [ ] `src/gem_model.py` — Graph Transformer con:
   - Nodo virtual QCR (Quantum Circuit Representative) conectado a todos los nodos
   - No message-passing (estilo GTraQEM, no MPNN)
   - MLP de salida que lee el embedding del QCR para predecir Δ
-- [ ] `src/rem_model.py` — GNN local 2×2 + Matrix-Free GMRES
-- [ ] `src/train.py` — bucles desacoplados GEM/REM + MLflow + normalización de Δ por rango del observable
-- [ ] `src/inference.py` — pipeline producción GEM → QPU → REM
+- [ ] `src/train.py` — entrenamiento de los 3 modelos con protocolo IDÉNTICO (mismos splits, mismas
+      métricas, misma semilla) + MLflow + normalización de Δ
+- [ ] `configs/baselines_config.yaml` — hiperparámetros de Ridge y RF (sin hardcoding)
+- [ ] 🔮 REM (`src/rem_model.py`, `src/inference.py` GEM→QPU→REM): **TRABAJO FUTURO** — ficheros
+      conservados como esqueleto, ver `IDEAS_FUTURAS.md`
 
 ---
 
@@ -145,21 +163,33 @@ Ver `doc/migracion_heron.md`.
       5 tipos de circuito lado a lado + **barrido de shots (1024→16384) midiendo la estabilidad de
       la etiqueta Δ** → justificación empírica de la decisión LABEL_SHOTS (responde al suelo de
       shot-noise detectado en TAREA 8)
-- [ ] `03_gem_transformer_evaluation.ipynb` — métricas GEM (MAE, RMSE, R², mejora relativa) separadas
-      por: in-distribution / zero-shot QAOA / zero-shot QFT / por día
-      ⚠️ Requiere las etiquetas GEM regeneradas SIN readout (nuevo sub-ítem de TAREA 4)
-- [ ] `04_rem_gnn_matrix_free.ipynb` — métricas REM (HF, TVD, ratio de mejora) con los mismos splits
-      ⚠️ Requiere el dataset REM de circuitos triviales solo-readout (nuevo sub-ítem de TAREA 4)
-- [ ] `05_final_pipeline_tradeoffs.ipynb` — pipeline completo + ablación 70/30 vs 80/20 vs 90/10
-      (requiere proporciones configurables — sub-ítem de TAREA 4). Trade-offs con barras agrupadas
-      o small multiples en lugar de radar (legibilidad)
+- [ ] `03_gem_transformer_evaluation.ipynb` — entrenamiento y métricas del GEM (MAE, RMSE, R²,
+      mejora relativa) separadas por: in-distribution / zero-shot QAOA / zero-shot QFT / por día
+      (la nota anterior sobre regenerar etiquetas sin readout queda ANULADA — Δ es error total)
+- [ ] `04_model_comparison.ipynb` — **LA COMPARATIVA (núcleo del TFM revisado)**: Ridge vs. Random
+      Forest vs. GEM con protocolo idéntico, tabla de métricas por split, análisis de dónde gana
+      cada modelo. (Sustituye al antiguo notebook REM, que pasa a trabajo futuro)
+- [ ] `05_final_pipeline_tradeoffs.ipynb` — análisis final: mejor modelo aplicado al flujo completo,
+      ablación 70/30 vs 80/20 vs 90/10 (opcional), figuras/tablas exportadas para la memoria.
+      Trade-offs con barras agrupadas o small multiples en lugar de radar (legibilidad)
 
 ---
 
-## ⏳ TAREA 6: Validación en hardware IBM real
+## ⏳ TAREA 6: Datos reales de IBM (calibración diaria + validación en hardware)
 
-> 🔒 Espera a TAREA 5. Requiere créditos IBM activos.
+> Requiere cuenta IBM verificada (pendiente: email a verify@us.ibm.com). La recopilación de
+> calibración es GRATIS (no gasta QPU) — arrancarla EN CUANTO haya cuenta, cada día suma.
 
+### 6a — Recopilación de calibración real diaria (idea del tutor — test con drift auténtico)
+- [ ] Script `scripts/collect_calibration.py`: descarga y archiva la calibración del día con
+      timestamp (`data/raw/calib_history/ibm_kingston_YYYY-MM-DD.json`)
+- [ ] Ejecutarlo a diario (cron/manual) durante ≥2 semanas
+- [ ] [SUPOSICIÓN a verificar] La API podría permitir descargar calibraciones históricas de fechas
+      pasadas de golpe — comprobarlo el primer día; ahorraría la espera
+- [ ] Regenerar dataset con calibraciones reales: train = días antiguos, test = días recientes
+      (drift REAL sustituye al sintético)
+
+### 6b — Validación en hardware real (brecha simulation-to-real)
 - [ ] Ejecutar 20–30 circuitos representativos en `ibm_kingston` real (incluir random, HEA, QAOA, QFT)
 - [ ] Comparar MAE_real vs. MAE_simulado para verificar la brecha simulation-to-real
 - [ ] Si la brecha es aceptable (<20% de degradación): documentar como validación exitosa
@@ -170,6 +200,8 @@ Ver `doc/migracion_heron.md`.
 ## ⏳ TAREA 7: Mejoras al modelo de ruido (post-validación real)
 
 > 🔒 Espera a TAREA 6. Activar solo si la brecha simulation-to-real justifica el esfuerzo.
+> Prioridad REBAJADA tras el cambio de alcance (jul-2026): estas mejoras servían sobre todo al REM,
+> que ahora es trabajo futuro. Para el GEM solo importan si la brecha de TAREA 6b es grande.
 
 ### 7a — Matriz de confusión de readout asimétrica
 

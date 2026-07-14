@@ -16,19 +16,20 @@
 1. **Ruido dinámico de puertas** — acumulación térmica y de despolarización durante la ejecución del circuito.
 2. **Ruido de lectura (readout)** — errores del sensor láser en la medición final.
 
-**Solución (pipeline de dos módulos desacoplados):**
+**⚠️ ALCANCE VIGENTE (jul-2026, acordado con el tutor): SOLO GEM, como comparativa de modelos.**
+El REM es TRABAJO FUTURO (ficheros conservados como esqueleto; ver IDEAS_FUTURAS.md). Δ es ahora
+el **error TOTAL** (puertas + readout) — el desacoplamiento de ruidos queda anulado.
 
-- **GEM (Gate Error Mitigation):** Graph Transformer que ingiere el DAG del circuito y la telemetría del chip, y predice un valor continuo de desviación **Δ**. El circuito se ejecuta *intacto* en IBM (no se modifica — ver "Trampa del Transpilador" en sección 6).
-- **REM (Readout Error Mitigation):** GNN que predice matrices de confusión locales 2×2 por qubit. Corrección algebraica libre de matrices (Matrix-Free Subspace Inversion), operando solo en el subespacio de bitstrings observados → complejidad O(N) en lugar de O(2^{3n}).
+**Solución (alcance vigente):**
 
-**Flujo de inferencia (secuencial):**
+- **GEM (Gate Error Mitigation):** Graph Transformer que ingiere el DAG del circuito y la telemetría del chip, y predice un valor continuo de desviación **Δ** (error total) ANTES de ejecutar. El circuito se ejecuta *intacto* en IBM (no se modifica — ver "Trampa del Transpilador" en sección 6).
+- **Comparativa de 3 modelos** (encuadre del TFM): **Ridge** (regresión lineal clásica) + **Random Forest** (mejor baseline según Liao 2024) + **GEM** (Graph Transformer). Baselines tabulares sobre features agregadas del circuito; protocolo de evaluación IDÉNTICO para los tres. Lo que se valora es la comparativa rigurosa, no que un modelo sea excelente.
+- 🔮 *Trabajo futuro — REM (Readout Error Mitigation):* GNN que predice matrices de confusión locales 2×2 por qubit + corrección Matrix-Free (GMRES en subespacio de bitstrings observados, O(N)).
+
+**Flujo de inferencia (alcance vigente):**
 ```
-Circuito usuario → GEM predice Δ → Ejecución en IBM QPU → REM limpia histograma → ⟨O⟩_mitigado = ⟨O⟩_ruido - Δ
+Circuito usuario → GEM predice Δ (error total) → Ejecución en IBM QPU → ⟨O⟩_mitigado = ⟨O⟩_ruido - Δ
 ```
-
-**Entrenamiento (paralelo, desacoplado):**
-- GEM se entrena con ruido solo de puertas (readout desactivado en simulador).
-- REM se entrena con circuitos triviales y solo ruido de lectura activado.
 
 ---
 
@@ -93,10 +94,10 @@ TFM-Quantum/
 │   ├── quantum_gen.py  ✅ COMPLETO (TAREA 1 + 3 + 3b + 8)
 │   ├── dataset.py      ❌ VACÍO
 │   ├── gem_model.py    ❌ VACÍO
-│   ├── rem_model.py    ❌ VACÍO
+│   ├── rem_model.py    🔮 TRABAJO FUTURO (REM fuera de alcance)
 │   ├── train.py        ⚠️  ESQUELETO (solo docstring)
 │   ├── utils.py        ⚠️  ESQUELETO (solo docstring)
-│   └── inference.py    ❌ VACÍO
+│   └── inference.py    🔮 TRABAJO FUTURO (pipeline GEM→QPU→REM)
 ├── tests/
 │   └── test_quantum_gen.py  ✅ 37/37 PASSED
 ├── .dvc/               # Metadata DVC (versionado)
@@ -126,13 +127,17 @@ TFM-Quantum/
   - `TFMDatasetPipeline`: orquestador con `run()`, routing por split (QAOA/QFT solo zero-shot), seeds independientes por split (sin leakage, TAREA 8), simulación Aer ruidosa (`method='statevector'`, `LABEL_SHOTS`).
 - **`tests/test_quantum_gen.py`** ✅ — 37/37 PASSED (calibración falsa en tmp_path, sin conexión IBM; incluye test de regresión anti-leakage).
 
-### Pendientes (vacíos o esqueleto)
+### Pendientes (alcance vigente: GEM + comparativa)
 - **`src/dataset.py`** — Clases `Dataset` de `torch_geometric.data` para cargar los `.pt` en DataLoaders.
+- **`src/features.py`** (nuevo) — Features agregadas del circuito para los baselines tabulares.
+- **`src/baselines.py`** (nuevo) — Ridge + Random Forest (sklearn).
 - **`src/gem_model.py`** — Arquitectura Graph Transformer (regresor continuo → predice Δ).
-- **`src/rem_model.py`** — Arquitectura GNN + lógica Matrix-Free Subspace Inversion con GMRES.
-- **`src/train.py`** — Bucles de entrenamiento desacoplados, integración MLflow/W&B.
-- **`src/utils.py`** — Fidelidad cuántica, One-Hot Encodings, llamadas GMRES, operadores unitarios.
-- **`src/inference.py`** — Pipeline de producción: GEM → QPU → REM → ajuste final.
+- **`src/train.py`** — Entrenamiento de los 3 modelos con protocolo idéntico + MLflow/W&B.
+- **`src/utils.py`** — Métricas GEM (MAE, RMSE, R², mejora relativa), encodings.
+
+### 🔮 Trabajo futuro (fuera del alcance vigente — NO implementar)
+- **`src/rem_model.py`** — GNN + Matrix-Free GMRES (módulo REM completo).
+- **`src/inference.py`** — Pipeline producción GEM → QPU → REM.
 - **Notebooks 02–05** — Pendientes de implementar (0 bytes). `main.ipynb` es un placeholder vacío (era de pruebas).
   - **Notebook 01** ✅ COMPLETO — EDA divulgativa ejecutada (circuito dibujado, DAG coloreado, heatmap de drift, franja de shot-noise, conclusiones sobre outputs reales).
 
@@ -211,15 +216,9 @@ La GNN predice matrices 2×2 locales por qubit (y opcionalmente 4×4 para vecino
 | R² | `utils.py` |
 | Mejora relativa vs. sin mitigar | `utils.py` |
 
-**REM** (corrección de distribuciones):
+Las métricas se calculan con protocolo IDÉNTICO para los 3 modelos de la comparativa (Ridge, RF, GEM) y se reportan separadas por: in-distribution / zero-shot QAOA / zero-shot QFT / por día del split temporal.
 
-| Métrica | Implementación |
-|---|---|
-| Hellinger Fidelity (HF) | `utils.py` |
-| Total Variation Distance (TVD) | `utils.py` |
-| Ratio de mejora HF_mit / HF_noisy | `utils.py` |
-
-Todas las métricas se reportan separadas por: in-distribution / zero-shot QAOA / zero-shot QFT / por día del split temporal.
+🔮 *Trabajo futuro — métricas REM (si se retoma):* Hellinger Fidelity, TVD, ratio HF_mit/HF_noisy.
 
 ### Vector de features por nodo (grafo) — 19 dimensiones objetivo
 

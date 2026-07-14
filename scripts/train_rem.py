@@ -1,4 +1,7 @@
 """
+
+🔮 TRABAJO FUTURO (jul-2026): el REM está fuera del alcance vigente del TFM.
+Este script se conserva como esqueleto (ver IDEAS_FUTURAS.md, IDEA-0).
 Entrena el módulo REM (Readout Error Mitigation).
 
 Uso:

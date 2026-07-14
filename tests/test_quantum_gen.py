@@ -42,6 +42,7 @@ BASIS_GATES = {"cz", "id", "rz", "sx", "x"}  # Heron r2/r3 (CZ, no CX)
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def fake_raw_dir(tmp_path):
     """
@@ -61,7 +62,9 @@ def fake_raw_dir(tmp_path):
         for q in range(N_FAKE_QUBITS)
     }
     calib = raw / "ibm_kingston_calib.json"
-    calib.write_text(json.dumps({"properties": props, "coupling_map": FAKE_COUPLING_MAP}))
+    calib.write_text(
+        json.dumps({"properties": props, "coupling_map": FAKE_COUPLING_MAP})
+    )
     return raw
 
 
@@ -101,6 +104,7 @@ def _ideal_probs(qc: QuantumCircuit) -> np.ndarray:
 
 # ─── CircuitFactory ───────────────────────────────────────────────────────────
 
+
 class TestCircuitFactory:
     """Tests para la generación de circuitos cuánticos."""
 
@@ -125,11 +129,15 @@ class TestCircuitFactory:
         )
 
     def test_random_circuit_is_reproducible(self, factory):
-        qc1 = factory.generate_random_circuit(4, 5, seed=99, coupling_map=FAKE_COUPLING_MAP)
-        qc2 = factory.generate_random_circuit(4, 5, seed=99, coupling_map=FAKE_COUPLING_MAP)
-        assert qc1.count_ops() == qc2.count_ops(), (
-            "Mismo seed produce circuitos distintos — la reproducibilidad está rota."
+        qc1 = factory.generate_random_circuit(
+            4, 5, seed=99, coupling_map=FAKE_COUPLING_MAP
         )
+        qc2 = factory.generate_random_circuit(
+            4, 5, seed=99, coupling_map=FAKE_COUPLING_MAP
+        )
+        assert (
+            qc1.count_ops() == qc2.count_ops()
+        ), "Mismo seed produce circuitos distintos — la reproducibilidad está rota."
 
     def test_qft_returns_quantumcircuit(self, factory):
         qc = factory.generate_qft(num_qubits=4, coupling_map=FAKE_COUPLING_MAP)
@@ -155,7 +163,9 @@ class TestCircuitFactory:
 
     def test_qaoa_returns_quantumcircuit(self, factory):
         """El circuito QAOA se genera sin errores (aunque el operador sea incorrecto — BUG-2)."""
-        qc = factory.generate_qaoa(num_qubits=4, seed=42, coupling_map=FAKE_COUPLING_MAP)
+        qc = factory.generate_qaoa(
+            num_qubits=4, seed=42, coupling_map=FAKE_COUPLING_MAP
+        )
         assert isinstance(qc, QuantumCircuit)
 
     def test_coupling_map_filter_removes_inactive_qubits(self, factory):
@@ -220,12 +230,13 @@ class TestCircuitFactory:
         )
         assert isinstance(qc, QuantumCircuit)
         gate_names = {inst.operation.name for inst in qc.data}
-        assert not (gate_names - BASIS_GATES), (
-            f"generate_tfim() produce puertas no-nativas: {gate_names - BASIS_GATES}"
-        )
+        assert not (
+            gate_names - BASIS_GATES
+        ), f"generate_tfim() produce puertas no-nativas: {gate_names - BASIS_GATES}"
 
 
 # ─── HardwareTelemetrics ──────────────────────────────────────────────────────
+
 
 class TestHardwareTelemetrics:
     """Tests para la simulación del hardware IBM (calibración y drift)."""
@@ -324,6 +335,7 @@ class TestHardwareTelemetrics:
 
 # ─── QuantumGraphExtractor ────────────────────────────────────────────────────
 
+
 class TestQuantumGraphExtractor:
     """Tests para la conversión circuito → grafo PyTorch Geometric."""
 
@@ -332,7 +344,9 @@ class TestQuantumGraphExtractor:
         """Grafo de un HEA de 4 qubits en day=0. Usa delta=0.05 fijo para tests estructurales."""
         qc = factory.generate_hea(num_qubits=4, seed=42, coupling_map=FAKE_COUPLING_MAP)
         probs = _ideal_probs(qc)
-        return extractor.circuit_to_graph(qc, delta=0.05, day_index=0, ideal_probs=probs)
+        return extractor.circuit_to_graph(
+            qc, delta=0.05, day_index=0, ideal_probs=probs
+        )
 
     # -- Comportamientos que deben funcionar ✅ --
 
@@ -350,15 +364,15 @@ class TestQuantumGraphExtractor:
         assert hea_graph.x.shape[0] > 0, "El grafo no tiene nodos."
 
     def test_node_features_are_float32(self, hea_graph):
-        assert hea_graph.x.dtype == torch.float32, (
-            f"x.dtype = {hea_graph.x.dtype}, se esperaba torch.float32."
-        )
+        assert (
+            hea_graph.x.dtype == torch.float32
+        ), f"x.dtype = {hea_graph.x.dtype}, se esperaba torch.float32."
 
     def test_has_valid_edge_index(self, hea_graph):
         assert hea_graph.edge_index is not None
-        assert hea_graph.edge_index.shape[0] == 2, (
-            "edge_index debe tener forma [2, num_edges]."
-        )
+        assert (
+            hea_graph.edge_index.shape[0] == 2
+        ), "edge_index debe tener forma [2, num_edges]."
 
     def test_edge_indices_within_node_count(self, hea_graph):
         n_nodes = hea_graph.x.shape[0]
@@ -372,20 +386,24 @@ class TestQuantumGraphExtractor:
     def test_has_target_y(self, hea_graph):
         """y = Δ (GEM target): tensor de shape [1] con un float finito."""
         assert hea_graph.y is not None
-        assert hea_graph.y.shape == torch.Size([1]), (
-            f"y debe tener forma [1] (Δ escalar), tiene {hea_graph.y.shape}."
-        )
+        assert hea_graph.y.shape == torch.Size(
+            [1]
+        ), f"y debe tener forma [1] (Δ escalar), tiene {hea_graph.y.shape}."
         assert torch.isfinite(hea_graph.y).all(), "y contiene NaN o Inf."
 
     def test_ideal_probs_stored_when_provided(self, factory, extractor):
         """Cuando se pasan ideal_probs, se guardan en data.ideal_probs."""
         qc = factory.generate_hea(num_qubits=4, seed=42, coupling_map=FAKE_COUPLING_MAP)
         probs = _ideal_probs(qc)
-        graph = extractor.circuit_to_graph(qc, delta=0.05, day_index=0, ideal_probs=probs)
-        assert hasattr(graph, "ideal_probs"), "data.ideal_probs no está en el objeto Data."
-        assert abs(graph.ideal_probs.sum().item() - 1.0) < 1e-4, (
-            "ideal_probs no suma 1.0 — verificar que es |ψ|²."
+        graph = extractor.circuit_to_graph(
+            qc, delta=0.05, day_index=0, ideal_probs=probs
         )
+        assert hasattr(
+            graph, "ideal_probs"
+        ), "data.ideal_probs no está en el objeto Data."
+        assert (
+            abs(graph.ideal_probs.sum().item() - 1.0) < 1e-4
+        ), "ideal_probs no suma 1.0 — verificar que es |ψ|²."
 
     def test_graph_with_different_days_is_different(self, factory, extractor):
         """Mismo circuito en days distintos debe producir features distintas (drift aplicado)."""
@@ -426,7 +444,9 @@ class TestQuantumGraphExtractor:
 
     # -- BUG-5b ❌ --
 
-    def test_bug5b_onequbit_gate_target_slot_is_copy_not_zeropad(self, factory, extractor):
+    def test_bug5b_onequbit_gate_target_slot_is_copy_not_zeropad(
+        self, factory, extractor
+    ):
         """
         BUG-5b (CORREGIDO en TAREA 1) — Regresión: para puertas de 1 qubit, el slot
         del qubit target (dims 14:17 en el layout de 19 dims) debe ser zero-pad
@@ -437,7 +457,9 @@ class TestQuantumGraphExtractor:
         """
         qc = factory.generate_hea(num_qubits=4, seed=42, coupling_map=FAKE_COUPLING_MAP)
         probs = _ideal_probs(qc)
-        graph = extractor.circuit_to_graph(qc, delta=0.05, day_index=0, ideal_probs=probs)
+        graph = extractor.circuit_to_graph(
+            qc, delta=0.05, day_index=0, ideal_probs=probs
+        )
         x = graph.x
 
         # One-hot: cz=col0, id=col1, rz=col2, sx=col3, x=col4, measure=col5
@@ -458,11 +480,13 @@ class TestQuantumGraphExtractor:
         #                  [13:14 gate_length][14:17 target T1/T2/re][17:18 day][18:19 depth]
         actual_dims = x.shape[1]
         if actual_dims == 19:
-            control_feats = one_qubit_nodes[:, 9:12]   # T1/T2/re del control (19-dim)
-            target_feats = one_qubit_nodes[:, 14:17]   # T1/T2/re del target (19-dim)
+            control_feats = one_qubit_nodes[:, 9:12]  # T1/T2/re del control (19-dim)
+            target_feats = one_qubit_nodes[:, 14:17]  # T1/T2/re del target (19-dim)
         else:
-            control_feats = one_qubit_nodes[:, 9:12]   # T1/T2/re del control (15-dim)
-            target_feats = one_qubit_nodes[:, 12:15]   # T1/T2/re del target (15-dim, buggy)
+            control_feats = one_qubit_nodes[:, 9:12]  # T1/T2/re del control (15-dim)
+            target_feats = one_qubit_nodes[
+                :, 12:15
+            ]  # T1/T2/re del target (15-dim, buggy)
 
         zero_pad = torch.zeros_like(target_feats)
 
@@ -471,7 +495,7 @@ class TestQuantumGraphExtractor:
 
         assert is_zero_padded, (
             f"BUG-5b: Slot del qubit target en puertas 1-qubit "
-            f"{'contiene copia del control' if is_copy_of_control else 'tiene valores inesperados'} "
+            f"{'copia del control' if is_copy_of_control else 'valores inesperados'} "
             f"en lugar de [0.0, 0.0, 0.0]. "
             f"Fix: cambiar 'vec_target = vec_control.copy()' por "
             f"'vec_target = [0.0, 0.0, 0.0]' para nodos con len(node.qargs) == 1."
@@ -479,6 +503,7 @@ class TestQuantumGraphExtractor:
 
 
 # ─── TFMDatasetPipeline ───────────────────────────────────────────────────────
+
 
 class TestTFMDatasetPipeline:
     """Tests para el orquestador MLOps de generación de datasets."""
@@ -570,7 +595,9 @@ class TestTFMDatasetPipeline:
         from torch_geometric.data import Data
 
         pipeline = TFMDatasetPipeline(output_dir=tmp_path, telemetrics=hw)
-        pipeline.generate_dataset(num_samples=2, day_index=0, split_name="validity_check")
+        pipeline.generate_dataset(
+            num_samples=2, day_index=0, split_name="validity_check"
+        )
 
         for pt_file in sorted(tmp_path.glob("**/*.pt")):
             obj = torch.load(pt_file, weights_only=False)
@@ -578,9 +605,9 @@ class TestTFMDatasetPipeline:
                 f"{pt_file.name} no es un objeto torch_geometric.data.Data. "
                 f"Tipo encontrado: {type(obj)}"
             )
-            assert obj.x is not None and obj.x.shape[0] > 0, (
-                f"{pt_file.name} contiene un grafo sin nodos."
-            )
+            assert (
+                obj.x is not None and obj.x.shape[0] > 0
+            ), f"{pt_file.name} contiene un grafo sin nodos."
 
     def test_saved_files_follow_naming_convention(self, hw, tmp_path):
         """Los ficheros deben seguir el patrón {split_name}_day{d}_sample{i}.pt"""
@@ -609,7 +636,9 @@ class TestTFMDatasetPipeline:
         pipeline.generate_dataset(num_samples=1, day_index=1, split_name="train")
         pipeline.generate_dataset(num_samples=1, day_index=1, split_name="val")
 
-        d_train = torch.load(tmp_path / "train" / "train_day1_sample0.pt", weights_only=False)
+        d_train = torch.load(
+            tmp_path / "train" / "train_day1_sample0.pt", weights_only=False
+        )
         d_val = torch.load(tmp_path / "val" / "val_day1_sample0.pt", weights_only=False)
 
         assert not torch.equal(d_train.x, d_val.x), (

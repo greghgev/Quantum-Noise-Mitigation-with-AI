@@ -1,4 +1,6 @@
 # REM — Readout Error Mitigation — Configuración de experimento
+# 🔮 TRABAJO FUTURO (jul-2026): el REM está fuera del alcance vigente del TFM.
+# Se conserva como esqueleto para la línea futura (IDEAS_FUTURAS.md, IDEA-0).
 
 model:
   hidden_dim: 64            # Dimensión GNN (más pequeña que GEM — tarea más local)

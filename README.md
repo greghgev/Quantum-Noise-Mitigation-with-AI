@@ -2,7 +2,9 @@
 
 ## La idea en 30 segundos
 
-Los ordenadores cuánticos actuales se equivocan en cada operación, como una calculadora imprecisa. Este TFM entrena dos modelos de deep learning para **limpiar ese error sin ejecutar el cálculo más veces**: el primero **predice cuánto se equivocará la máquina antes de ejecutar** (leyendo el "parte médico" diario del chip y el diseño del circuito), y el segundo corrige el error del sensor de lectura después. El resultado corregido se obtiene con una sola ejecución, cuando las técnicas clásicas necesitan decenas.
+Los ordenadores cuánticos actuales se equivocan en cada operación, como una calculadora imprecisa. Este TFM entrena modelos de IA que **predicen cuánto se equivocará la máquina ANTES de ejecutar el cálculo**, leyendo solo el "parte médico" diario del chip y el diseño del circuito. El trabajo se plantea como una **comparativa rigurosa de 3 modelos** — regresión lineal (Ridge), Random Forest y un Graph Transformer (GEM) — evaluados con protocolo idéntico.
+
+> 📌 **Alcance vigente (jul-2026, acordado con el tutor):** solo el módulo GEM, como comparativa de modelos. El segundo módulo original (REM, corrección del sensor de lectura post-ejecución) queda documentado como trabajo futuro.
 
 > 👤 **¿Primera vez en el proyecto?** Empieza por **[GUIA_TUTOR.md](GUIA_TUTOR.md)** — el recorrido completo sin tecnicismos, con el estado actual y el mapa de lectura.
 
@@ -10,14 +12,14 @@ Los ordenadores cuánticos actuales se equivocan en cada operación, como una ca
 
 ## Descripción técnica
 
-Pipeline de Deep Learning para mitigación integral de errores en hardware cuántico NISQ (IBM Heron r2, 156 qubits). Separa el ruido de puertas lógicas (dinámico, pre-ejecución) del ruido de lectura (estocástico, post-ejecución) mediante dos módulos especializados entrenados de forma desacoplada.
+Predicción pre-ejecución del error de circuitos cuánticos en hardware NISQ (IBM Heron r2, 156 qubits) mediante una comparativa de modelos: baselines clásicos de regresión (Ridge, Random Forest) sobre features agregadas vs. un Graph Transformer (GEM) sobre el DAG del circuito con telemetría física por puerta. (El módulo REM post-ejecución del diseño original queda como trabajo futuro.)
 
 ---
 
 ## Pipeline Arquitectónico
 
 ```
-Circuito → [GEM] → Δ predicho → IBM QPU (intacto) → [REM] → ⟨O⟩_mit = ⟨O⟩_noisy − Δ
+Circuito → [GEM] → Δ predicho → IBM QPU (intacto) → ⟨O⟩_mit = ⟨O⟩_noisy − Δ
 ```
 
 ### Módulo 1 — GEM (Gate Error Mitigation)
@@ -26,11 +28,17 @@ Predice Δ **antes** de ejecutar el circuito en el QPU. El circuito se represent
 
 Arquitectura: **Graph Transformer** con un nodo virtual QCR (Quantum Circuit Representative) conectado a todos los nodos del grafo. El QCR actúa como resumen global del circuito — su embedding se usa directamente para predecir Δ. Sin message-passing (estilo GTraQEM, no MPNN).
 
-Ventaja diferencial: al predecir Δ antes de la ejecución, el GEM puede actuar como **filtro de calidad del circuito** (rechazar circuitos con Δ demasiado alto) y mantiene una separación limpia entre tipos de error.
+Ventaja diferencial: al predecir Δ antes de la ejecución, el GEM puede actuar como **filtro de calidad del circuito** (rechazar circuitos con Δ demasiado alto) sin gastar tiempo de máquina. Δ es el error TOTAL del circuito (puertas + lectura).
 
-### Módulo 2 — REM (Readout Error Mitigation)
+### La comparativa (encuadre del TFM)
 
-Mitiga el ruido de lectura **después** de recibir los counts del QPU. Predice matrices locales de confusión 2×2 para pares de qubits vecinos (no la matriz global 2ⁿ×2ⁿ). Resuelve el sistema lineal con **GMRES Matrix-Free** limitado al subespacio de bitstrings observados → O(N) en memoria en lugar de O(2^{3n}).
+| Modelo | Tipo | Ve el grafo | Rol |
+|---|---|---|---|
+| Ridge | Regresión lineal clásica | No (features agregadas) | Baseline interpretable |
+| Random Forest | Ensemble clásico | No (features agregadas) | Baseline fuerte (el mejor en Liao et al., Nature MI 2024) |
+| **GEM** | Graph Transformer + QCR | **Sí (DAG completo)** | Modelo propuesto |
+
+Los tres predicen el mismo Δ, con los mismos splits, las mismas métricas y la misma semilla. La pregunta del TFM: *¿aporta la estructura de grafo frente a las features agregadas?*
 
 ### Post-procesado
 
@@ -38,7 +46,9 @@ Mitiga el ruido de lectura **después** de recibir los counts del QPU. Predice m
 ⟨O⟩_mit = ⟨O⟩_noisy − Δ
 ```
 
-El valor esperado mitigado se calcula restando al resultado del circuito ruidoso la desviación predicha por el GEM, tras pasar la distribución por el REM.
+### 🔮 Trabajo futuro — Módulo REM (Readout Error Mitigation)
+
+Fuera del alcance vigente. Mitigaría el ruido de lectura **después** de recibir los counts: matrices locales de confusión 2×2 por qubit + **GMRES Matrix-Free** en el subespacio de bitstrings observados (O(N) en memoria). Los esqueletos (`src/rem_model.py`, `configs/rem_config.yaml`) se conservan en el repo.
 
 ---
 
@@ -74,15 +84,15 @@ TFM-Quantum/
 ├── notebooks/
 │   ├── 01_eda_ibm_telemetry.ipynb              # EDA + drift step-like
 │   ├── 02_quantum_circuit_prototyping.ipynb    # Validación de los 5 tipos de circuito
-│   ├── 03_gem_transformer_evaluation.ipynb     # Métricas GEM por split
-│   ├── 04_rem_gnn_matrix_free.ipynb            # Métricas REM por split
+│   ├── 03_gem_transformer_evaluation.ipynb     # Entrenamiento y métricas del GEM
+│   ├── 04_model_comparison.ipynb               # Comparativa Ridge vs RF vs GEM (núcleo del TFM)
 │   └── 05_final_pipeline_tradeoffs.ipynb       # Pipeline completo + ablación 70/30/80/20/90/10
 ├── scripts/                    # Entry-points ejecutables (importan de src/)
 │   ├── generate.py             # Genera el dataset (--mini o --full)
 │   ├── make_synthetic_calib.py # Calibración sintética Heron (mientras no hay credenciales IBM)
 │   ├── make_pipeline_figure.py # Genera figures/pipeline_tfm.png
 │   ├── train_gem.py            # Entrena el GEM
-│   ├── train_rem.py            # Entrena el REM
+│   ├── train_rem.py            # 🔮 Trabajo futuro (REM)
 │   └── evaluate.py             # Evalúa el pipeline completo por split
 ├── src/                        # Código fuente modular (lógica de negocio)
 │   ├── config.py               # Rutas, constantes físicas, semillas
@@ -162,15 +172,9 @@ Modelo basado en evidencia empírica de hardware IBM real (vs. decay lineal prev
 | R² | Coeficiente de determinación |
 | Mejora relativa | `(MAE_noisy − MAE_mit) / MAE_noisy` |
 
-### REM
+Las métricas se calculan con protocolo idéntico para los 3 modelos de la comparativa y se reportan separadas por split: in-distribution / zero-shot QAOA / zero-shot QFT / por día.
 
-| Métrica | Descripción |
-|---------|-------------|
-| Hellinger Fidelity (HF) | Similaridad entre distribuciones de bitstrings (primaria) |
-| Total Variation Distance (TVD) | Distancia L1 entre distribuciones |
-| Ratio HF | `HF_mit / HF_noisy` — mejora relativa de la distribución |
-
-Todas las métricas se reportan separadas por split: in-distribution / zero-shot QAOA / zero-shot QFT / por día.
+*(🔮 Trabajo futuro — métricas REM: Hellinger Fidelity, TVD, ratio HF_mit/HF_noisy.)*
 
 ---
 

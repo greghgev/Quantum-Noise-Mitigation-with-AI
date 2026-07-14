@@ -8,6 +8,23 @@
 
 ---
 
+## IDEA-0 — El módulo REM completo (⭐ la línea futura principal)
+
+**Qué es:**
+La segunda mitad del diseño original del TFM, retirada del alcance en jul-2026 por acuerdo con el tutor (plazos). Una GNN que predice matrices de confusión locales 2×2 por qubit a partir de la topología del chip, y corrige la distribución medida con un solver **GMRES Matrix-Free** que opera solo en el subespacio de bitstrings observados (complejidad O(N) en lugar de O(2^{3n}) — extiende M3 [Nation et al., PRX Quantum 2021] con matrices dinámicas aprendidas en lugar de fijas).
+
+**Por qué es valiosa:**
+- Completaría el pipeline original GEM → QPU → REM, separando los dos tipos de error físico (puertas vs. lectura) con un módulo especializado para cada uno — la explicabilidad que motivó el diseño inicial.
+- El terreno está preparado: los campos `ideal_probs`/`noisy_probs` ya se guardan en cada muestra del dataset, y los esqueletos (`src/rem_model.py`, `configs/rem_config.yaml`, `scripts/train_rem.py`) se conservan en el repo.
+
+**Coste:**
+Alto — es un módulo entero: generador de dataset propio (circuitos triviales con solo ruido de lectura, que requiere simulador para aislar el readout), modelo, entrenamiento y evaluación (Hellinger Fidelity, TVD).
+
+**Respaldo en la literatura:**
+M3 [Nation et al., PRX Quantum 2021], Kim et al. [NJP 2022], Lee & Park [ML:ST 2023], Guo & Yang [arXiv 2026, tensor networks para readout correlacionado].
+
+---
+
 ## IDEA-1 — Evaluación cross-device (múltiples QPUs de IBM)
 
 **Qué es:**

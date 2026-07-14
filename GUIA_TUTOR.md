@@ -26,14 +26,19 @@ a posteriori.
 
 **La propuesta de este TFM añade algo que casi nadie ha explorado: predecir el
 error *antes* de ejecutar.** La máquina de IBM publica cada día su "parte médico"
-(qué componentes están más degradados). Mi primer modelo lee ese parte médico
+(qué componentes están más degradados). El modelo (GEM) lee ese parte médico
 junto con el diseño del cálculo y predice cuánto se va a equivocar la máquina
-**sin gastar ni un segundo de máquina real**. Un segundo modelo corrige, ya tras
-la ejecución, el error del "sensor" que lee el resultado final.
+**sin gastar ni un segundo de máquina real**.
 
 La utilidad práctica: si tienes 100 cálculos candidatos y presupuesto para lanzar
 solo 20, puedes saber de antemano cuáles saldrán mejor — imposible con los
 métodos que corrigen a posteriori.
+
+**El encuadre del trabajo (acordado contigo, jul-2026) es una comparativa de 3
+modelos** prediciendo ese error, evaluados con protocolo idéntico: una regresión
+lineal clásica (Ridge), un Random Forest, y el modelo de grafos propuesto (GEM).
+La pregunta central: *¿aporta algo ver la estructura del circuito como grafo,
+frente a usar solo estadísticas agregadas?*
 
 ## 2. El pipeline, de un vistazo
 
@@ -42,19 +47,22 @@ flowchart LR
     A["📄 Circuito cuántico<br/><i>el 'programa' que queremos ejecutar</i>"]
     B["🧠 Modelo 1: GEM<br/><i>predice cuánto se equivocará<br/>la máquina, ANTES de ejecutar</i>"]
     C["⚛️ Máquina IBM<br/><i>ejecuta el circuito tal cual<br/>(con sus errores)</i>"]
-    D["🧹 Modelo 2: REM<br/><i>limpia los errores del sensor<br/>de lectura, DESPUÉS de ejecutar</i>"]
+    D["🧹 REM (trabajo futuro)<br/><i>limpiaría el sensor de lectura<br/>— fuera del alcance actual</i>"]
     E["✅ Resultado corregido<br/><i>resultado sucio − error predicho</i>"]
     A --> B
     B --> C
-    C --> D
-    D --> E
+    C --> E
+    C -.-> D
+    D -.-> E
+    style D stroke-dasharray: 5 5,opacity:0.55
 ```
 
-Los dos modelos se entrenan por separado con datos simulados (un "gemelo digital"
-de la máquina de IBM que genero en mi portátil), y solo se combinan al final. Para
-demostrar que el modelo aprende la *física* del error y no se limita a memorizar
-ejemplos, lo evalúo con tipos de circuito que **jamás vio durante el
-entrenamiento** (evaluación "zero-shot").
+El modelo se entrena con datos simulados (un "gemelo digital" de la máquina de
+IBM que genero en mi portátil) usando la calibración del chip. Para demostrar que
+aprende la *física* del error y no se limita a memorizar ejemplos, se evalúa con
+tipos de circuito que **jamás vio durante el entrenamiento** ("zero-shot") y —
+cuando la cuenta de IBM esté activa — con calibraciones reales de días nuevos
+que el modelo tampoco vio (tu punto 3: los datos de cada día como test).
 
 ## 3. Qué hay construido y qué lo respalda
 
@@ -64,9 +72,10 @@ entrenamiento** (evaluación "zero-shot").
 | Generador de datos sintéticos (el "gemelo digital" de la máquina IBM) | ✅ Hecho | `src/quantum_gen.py` + 37/37 tests automáticos pasando |
 | Migración forzosa de hardware (IBM retiró la máquina de referencia original) | ✅ Hecho y documentado | `doc/migracion_heron.md` |
 | Dataset preliminar (~180 muestras) para validar el pipeline | ✅ Hecho | `data/` (versionado con DVC) + análisis visual en `notebooks/01_eda_ibm_telemetry.ipynb` |
-| Los dos modelos de deep learning (GEM y REM) | ⏳ Siguiente paso | Diseño cerrado en la documentación; código pendiente |
-| Dataset completo (5.000 muestras) | ⏳ Pendiente | Espera decisión de parámetros + acceso IBM |
-| Validación en máquina cuántica real | 🔒 Bloqueado temporalmente | La cuenta IBM está en verificación manual (trámite administrativo, no técnico) |
+| La comparativa: Ridge + Random Forest + GEM (Graph Transformer) | ⏳ Siguiente paso | Diseño cerrado (`ROADMAP.md` TAREA 4); código pendiente |
+| Dataset completo (5.000 muestras) | ⏳ Pendiente | Espera acceso IBM (para usar calibración real) |
+| Recopilación diaria de calibración real (tu punto 3) | 🔒 Bloqueado temporalmente | La cuenta IBM está en verificación manual (trámite administrativo, no técnico) |
+| Módulo REM (corrección del sensor post-ejecución) | 🔮 Trabajo futuro | Decisión conjunta jul-2026: fuera del alcance del TFM; esqueletos conservados |
 
 ## 4. Mapa de lectura recomendado
 
@@ -103,7 +112,7 @@ En cualquier caso, **no hacen falta los datos para entender el proyecto**: el no
 | **Readout** | La lectura final del resultado — el "sensor", que también se equivoca |
 | **Calibración** | El "parte médico" diario que IBM publica de cada máquina |
 | **Drift** | La degradación/variación de la máquina con el paso del tiempo |
-| **GEM** | Mi modelo 1: predice el error de las operaciones ANTES de ejecutar |
-| **REM** | Mi modelo 2: corrige el error del sensor DESPUÉS de ejecutar |
+| **GEM** | El modelo del TFM: predice el error del circuito ANTES de ejecutar |
+| **REM** | (Trabajo futuro) Corregiría el error del sensor DESPUÉS de ejecutar |
 | **Zero-shot** | Evaluar con tipos de circuito que el modelo nunca vio al entrenar |
 | **[SUPOSICIÓN]** | Marca que uso en todo el proyecto para señalar cualquier valor o decisión no verificada empíricamente |

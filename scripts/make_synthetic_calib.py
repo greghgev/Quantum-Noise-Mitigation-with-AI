@@ -16,6 +16,7 @@ para MAX_QUBITS=15 (misma decisión que el mini-run Eagle previo).
 Uso:
     conda run -n tfm python scripts/make_synthetic_calib.py
 """
+
 import json
 import sys
 from pathlib import Path

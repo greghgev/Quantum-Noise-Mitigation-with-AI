@@ -69,6 +69,11 @@ Dado que vas a generar tu dataset de entrenamiento en tu ordenador usando el sim
 
 ### 3. Acoplamiento Innecesario y Cuello de Botella MLOps
 
+> ⚠️ **Nota de vigencia (jul-2026):** esta sección describe el diseño ORIGINAL de dos módulos.
+> Tras el cambio de alcance acordado con el tutor (solo GEM, Δ = error total), el entrenamiento
+> desacoplado descrito abajo aplica únicamente al TRABAJO FUTURO (REM — ver IDEAS_FUTURAS.md IDEA-0).
+
+
 * **El Problema:** El diseño preliminar forzaba un flujo secuencial estricto donde la GNN del REM dependía de la salida del Transformer del GEM. Esto es un error a nivel MLOps, ya que impide el entrenamiento paralelo de los modelos. Además, a nivel físico, el ruido térmico y de lectura al final del circuito es estocásticamente independiente del ruido de las puertas operadas milisegundos antes.
 * **La Solución (Desacoplamiento de Training vs. Inference):**
     * **Fase de Entrenamiento (Paralela):** Los modelos se entrenan en pipelines aislados. El GEM se entrena con circuitos profundos sujetos exclusivamente a ruido térmico y de despolarización (ignorando el readout). El REM se entrena con circuitos triviales (preparación y medida) sujetos exclusivamente a matrices de error de lectura.

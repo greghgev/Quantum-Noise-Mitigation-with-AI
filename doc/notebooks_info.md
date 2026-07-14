@@ -26,28 +26,28 @@ Siguiendo las mejores prácticas de MLOps de la industria (*Cookiecutter Data Sc
   * Distinción explícita `LABEL_SHOTS` (etiquetas limpias) vs. `TRAIN_SHOTS` (inputs REM realistas) — ver `fallas_y_soluciones.md`.
 * **Valor para el Portfolio:** Demuestra rigurosidad estadística — la decisión de shots deja de ser una [SUPOSICIÓN] y pasa a estar respaldada por un experimento reproducible.
 
-### 🤖 `03_gem_transformer_evaluation.ipynb` — Evaluación del Módulo GEM
-> ⚠️ Prerrequisito: etiquetas GEM regeneradas con readout DESACTIVADO (sub-ítem de TAREA 4). El dataset actual mezcla ambos ruidos en Δ.
-* **Objetivo:** Analizar la convergencia y la precisión del Graph Transformer mitigando el ruido dinámico de las compuertas lógicas.
+### 🤖 `03_gem_transformer_evaluation.ipynb` — Entrenamiento y Evaluación del GEM
+> Alcance revisado jul-2026: Δ es el error TOTAL (puertas + readout) — el prerrequisito anterior de regenerar etiquetas queda anulado.
+* **Objetivo:** Analizar la convergencia y la precisión del Graph Transformer prediciendo el error total del circuito.
 * **Contenido:**
   * Evaluación del rendimiento del regresor continuo sobre el conjunto de test *Out-Of-Distribution* (OOD) temporal (Días 8-10).
   * Curvas de aprendizaje, análisis de residuos matemáticos y distribución del error en la predicción del valor de desviación continuo ($\Delta$).
   * Pruebas de estrés variando la profundidad del circuito (de 5 a 50 capas) para identificar el punto de colapso del modelo.
 * **Valor para el Portfolio:** Justifica la elección de la arquitectura basada en atención para capturar el paralelismo y la localidad cuántica sin violar los unitarios lógicos.
 
-### 🕸️ `04_rem_gnn_matrix_free.ipynb` — Evaluación del Módulo REM y Subespacios
-> ⚠️ Prerrequisito: dataset REM de circuitos triviales con SOLO readout (sub-ítem de TAREA 4). Aún no existe.
-* **Objetivo:** Validar la escalabilidad matemática de la mitigación de errores de lectura sin colapsar la memoria RAM.
+### ⚖️ `04_model_comparison.ipynb` — La Comparativa: Ridge vs. Random Forest vs. GEM
+> **El núcleo del TFM revisado** (jul-2026, acordado con el tutor). Sustituye al antiguo notebook de evaluación REM (ahora trabajo futuro — `IDEAS_FUTURAS.md` IDEA-0).
+* **Objetivo:** Comparar con protocolo idéntico los 3 modelos prediciendo Δ, y responder si la estructura de grafo aporta frente a las features agregadas.
 * **Contenido:**
-  * Análisis del error de predicción de la GNN sobre las matrices locales marginales de confusión $2 	imes 2$.
-  * Evaluación del solver iterativo de Krylov (**GMRES**) operando en la inversión libre de matrices (*Matrix-Free*).
-  * Gráficas comparativas empíricas de complejidad espacial y consumo de memoria: Enfoque Clásico $\mathcal{O}(2^{3n})$ vs. Enfoque de Subespacio de Shots $\mathcal{O}(N)$.
-* **Valor para el Portfolio:** Es la joya matemática del proyecto. Demuestra la viabilidad de escalar la mitigación a más de 100 qubits reales dentro de un entorno local estricto de 16GB de RAM.
+  * Ridge y Random Forest sobre features agregadas del circuito (`src/features.py`); GEM sobre el DAG completo.
+  * Protocolo idéntico: mismos splits, mismas métricas (MAE, RMSE, R², mejora relativa), misma semilla.
+  * Tabla comparativa por split (in-distribution / zero-shot QAOA / zero-shot QFT / por día) + análisis de dónde y por qué gana cada modelo.
+* **Valor para el Portfolio:** El formato "comparativa de soluciones" — riguroso en las métricas y en la igualdad del proceso de evaluación, que es lo que más se valora académicamente.
 
-### 🏁 `05_final_pipeline_tradeoffs.ipynb` — Acoplamiento de Inferencia y Trade-offs
-* **Objetivo:** Evaluar el pipeline integrado final en condiciones de producción real y extraer los entregables académicos.
+### 🏁 `05_final_pipeline_tradeoffs.ipynb` — Análisis Final y Trade-offs
+* **Objetivo:** Evaluar el mejor modelo de la comparativa en el flujo completo y extraer los entregables académicos.
 * **Contenido:**
-  * Simulación del flujo completo de inferencia: Circuito del usuario $ightarrow$ Inferencia GEM ($\Delta$) $ightarrow$ Simulación con ruido total $ightarrow$ Inferencia REM (Limpieza de histograma) $ightarrow$ Ajuste algebraico final.
+  * Flujo completo de inferencia (alcance vigente): Circuito del usuario → predicción de Δ → ajuste algebraico ⟨O⟩_mit = ⟨O⟩_noisy − Δ.
   * Análisis de compromiso (*Trade-off Analysis*) — **Ganancia de Fidelidad Cuántica vs. Latencia de Inferencia vs. Coste Computacional** — con barras agrupadas o *small multiples* (los radar comparan mal con pocas dimensiones).
   * Ablación de proporciones random/estructurados (70/30, 80/20, 90/10) — requiere proporciones configurables en `generate_dataset()` (sub-ítem TAREA 4).
   * Exportación automatizada de figuras y tablas en alta resolución para su inclusión directa en la memoria LaTeX del TFM.
