@@ -15,11 +15,12 @@ El objetivo de esta estructura es garantizar la modularidad, la reproducibilidad
 ### 2. Arquitecturas de Deep Learning (PyTorch)
 Para evitar el acoplamiento y facilitar la depuración, los modelos residen en archivos separados:
 * **`gem_model.py` (Gate Error Mitigation)**: Define la arquitectura del Graph Transformer. Ingiere el grafo del circuito y la telemetría de las compuertas lógicas para actuar como un regresor continuo, prediciendo la desviación ($\Delta$) del valor esperado debido al ruido térmico y de despolarización.
-* **`rem_model.py` (Readout Error Mitigation)**: Define la arquitectura de la Graph Neural Network (GNN). Predice las matrices de confusión marginales locales para el error de los sensores láser. Incluye la lógica algorítmica para el enfoque *Matrix-Free*, proyectando la solución en el subespacio de *shots* observados para mantener una complejidad $\mathcal{O}(N)$.
+* **`rem_model.py` (Readout Error Mitigation)** 🔮 TRABAJO FUTURO —: Define la arquitectura de la Graph Neural Network (GNN). Predice las matrices de confusión marginales locales para el error de los sensores láser. Incluye la lógica algorítmica para el enfoque *Matrix-Free*, proyectando la solución en el subespacio de *shots* observados para mantener una complejidad $\mathcal{O}(N)$.
 
 ### 3. Orquestación y MLOps
-* **`train.py`**: Pipeline de entrenamiento desacoplado. Ejecuta los bucles de entrenamiento (`epochs`), optimización de gradientes y cálculo de la *Loss Function* (Fidelidad). Integra MLflow / Weights & Biases para el registro automatizado de métricas, artefactos y versionado de pesos de red. Entrena GEM y REM en procesos aislados para evitar fugas de datos (*Data Leakage*).
-* **`inference.py`**: El pipeline de producción real. Es el único punto donde GEM y REM interactúan. Ingiere un circuito de usuario, ejecuta la predicción del GEM, simula la ejecución en el hardware real, aplica la mitigación del REM sobre el histograma ruidoso, y computa el ajuste algebraico final.
+* **`train.py`**: Pipeline de entrenamiento de la comparativa (alcance vigente jul-2026): entrena los 3 modelos — Ridge, Random Forest y GEM — con protocolo idéntico (mismos splits, métricas y semilla). Integra MLflow / Weights & Biases para el registro automatizado de métricas, artefactos y versionado de pesos.
+* **`features.py` / `baselines.py`** (pendientes): features agregadas del circuito para los baselines tabulares, y los modelos Ridge + Random Forest (sklearn).
+* **`inference.py`** 🔮 TRABAJO FUTURO: el pipeline de producción GEM → QPU → REM del diseño original. Fuera del alcance vigente (ver `IDEAS_FUTURAS.md` IDEA-0).
 
 ### 4. Configuración y Utilidades Core
 * **`config.py`**: El centro de control del repositorio. Ningún valor de hiperparámetro está *hardcodeado* en el código fuente. Este archivo gestiona las variables de entorno (`.env`), topes físicos (ej. 15 qubits max, 1024 shots) y, crucialmente, las semillas aleatorias (`seeds`) globales para asegurar el determinismo estadístico en toda la investigación.

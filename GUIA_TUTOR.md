@@ -87,7 +87,7 @@ Si dispones de **una hora**:
 
 3. `IDEA_GENERAL_TFM.md` — la explicación conceptual completa (por qué es distinto al estado del arte, qué se mide, qué limitaciones tiene)
 4. `ROADMAP.md` — el estado detallado de cada tarea, con lo hecho y lo pendiente
-5. `doc/SOTA/comparative_analysis.md` — cada decisión de diseño contrastada con los 12 papers de referencia
+5. `doc/SOTA/comparative_analysis.md` — cada decisión de diseño contrastada con los 14 papers de referencia
 
 ## 5. Sobre los datos (no están en GitHub)
 

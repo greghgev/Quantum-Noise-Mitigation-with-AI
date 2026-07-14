@@ -1,5 +1,6 @@
 """
-Evalúa el pipeline completo GEM + REM sobre el conjunto de test OOD y los conjuntos zero-shot.
+Evalúa los modelos de la comparativa (Ridge, RF, GEM) sobre test OOD y zero-shot.
+(Alcance jul-2026: solo GEM; las opciones REM se conservan para el trabajo futuro.)
 
 Reporta todas las métricas:
   GEM: MAE, RMSE, R², mejora relativa

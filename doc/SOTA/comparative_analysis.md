@@ -96,14 +96,14 @@
 **[SUPOSICIÓN TFM]** Vector de 19 dims:
 | # | Feature | Dims | Estado |
 |---|---|---|---|
-| 1 | one-hot gate type (cx, id, rz, sx, x, measure) | 6 | ✅ implementado |
+| 1 | one-hot gate type (cz, id, rz, sx, x, measure — base Heron) | 6 | ✅ implementado |
 | 2 | ángulos θ, φ, λ | 3 | ✅ implementado |
 | 3 | T1, T2, readout_error qubit control | 3 | ✅ implementado |
-| 4 | gate_error | 1 | ❌ pendiente Bug 1 |
-| 5 | gate_length | 1 | ❌ pendiente Bug 1 |
-| 6 | T1, T2, readout_error qubit target (zero-pad para 1q) | 3 | ⚠️ bug: copia en lugar de zero-pad |
-| 7 | day_index / 10.0 | 1 | ❌ pendiente Bug 1 |
-| 8 | depth_position / depth_total | 1 | ❌ pendiente Bug 1 |
+| 4 | gate_error | 1 | ✅ implementado (TAREA 1) |
+| 5 | gate_length | 1 | ✅ implementado (TAREA 1) |
+| 6 | T1, T2, readout_error qubit target (zero-pad para 1q) | 3 | ✅ implementado (zero-pad correcto) |
+| 7 | day_index / 10.0 | 1 | ✅ implementado (TAREA 1) |
+| 8 | depth_position / depth_total | 1 | ✅ implementado (TAREA 1) |
 
 **Análisis de trade-off:**
 - Las 19 dims son competitivas con GTraQEM en cobertura de información. El diseño es sólido.
@@ -111,7 +111,7 @@
 - **Problema crítico:** El TFM NO incluye P_noisy como feature — es un modelo pre-ejecución. Placidi demuestra que P_noisy domina en el paradigma post-ejecución. El TFM debería explicitar en §3/§4 que opera en un paradigma diferente (no porque P_noisy no sea importante, sino porque el GEM predice antes de ejecutar).
 - `day_index` como feature explícito del drift NO aparece en ningún paper revisado — es una contribución original del TFM. Bien justificado teóricamente por Hirasaki et al. pero sin validación empírica en los papers.
 - El multi-hot qubit encoding de QEMFormer no es generalizable — el diseño de 19 dims del TFM es más robusto en este sentido.
-- **Bug crítico activo:** feature #6 (target qubit zero-pad) copia el qubit control en lugar de rellenar con ceros → introduce información falsa para puertas de 1 qubit.
+- ~~Bug crítico: feature #6 copiaba el qubit control~~ **RESUELTO en TAREA 1** (zero-pad correcto, verificado por test de regresión).
 
 ---
 
@@ -259,6 +259,9 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 ---
 
 ## 7. Módulo REM (Readout Error Mitigation)
+
+> ⚠️ **Nota de vigencia (jul-2026):** el REM está FUERA del alcance del TFM tras el acuerdo con el
+> tutor (solo GEM + comparativa). Este análisis se conserva para la línea futura (IDEAS_FUTURAS IDEA-0).
 
 ### Lo que hacen los papers
 

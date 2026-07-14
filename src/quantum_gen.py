@@ -3,7 +3,7 @@
 """
 Módulo de Generación Cuántica y Extracción de Grafos.
 Actúa como Gemelo Digital del hardware de IBM, generando datos sintéticos
-ruidosos para entrenar los modelos GEM y REM.
+ruidosos para entrenar el modelo GEM (y, como trabajo futuro, el REM).
 """
 import gc
 import json
