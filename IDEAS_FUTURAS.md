@@ -8,20 +8,98 @@
 
 ---
 
-## IDEA-0 — El módulo REM completo (⭐ la línea futura principal)
+## IDEA-0 — El módulo REM completo (⭐ la línea futura principal) — ANEXO CONSOLIDADO
 
-**Qué es:**
-La segunda mitad del diseño original del TFM, retirada del alcance en jul-2026 por acuerdo con el tutor (plazos). Una GNN que predice matrices de confusión locales 2×2 por qubit a partir de la topología del chip, y corrige la distribución medida con un solver **GMRES Matrix-Free** que opera solo en el subespacio de bitstrings observados (complejidad O(N) en lugar de O(2^{3n}) — extiende M3 [Nation et al., PRX Quantum 2021] con matrices dinámicas aprendidas en lugar de fijas).
+> **Este es el único lugar del repositorio donde vive la información del módulo REM** (Readout
+> Error Mitigation), retirado del alcance del TFM en jul-2026 por acuerdo con el tutor. Aquí se
+> consolida TODO: diseño, matemática, estrategia de entrenamiento, métricas, referencias y
+> análisis SOTA — movidos desde CLAUDE.md, fallas_y_soluciones.md y comparative_analysis.md.
+> El código esqueleto (rem_model.py, train_rem.py, rem_config.yaml) fue eliminado del árbol;
+> recuperable del historial git si se retoma.
 
-**Por qué es valiosa:**
-- Completaría el pipeline original GEM → QPU → REM, separando los dos tipos de error físico (puertas vs. lectura) con un módulo especializado para cada uno — la explicabilidad que motivó el diseño inicial.
-- El terreno está preparado: los campos `ideal_probs`/`noisy_probs` ya se guardan en cada muestra del dataset, y los esqueletos (`src/rem_model.py`, `configs/rem_config.yaml`, `scripts/train_rem.py`) se conservan en el repo.
+### Qué es
 
-**Coste:**
-Alto — es un módulo entero: generador de dataset propio (circuitos triviales con solo ruido de lectura, que requiere simulador para aislar el readout), modelo, entrenamiento y evaluación (Hellinger Fidelity, TVD).
+La segunda mitad del diseño original del TFM: un corrector del error del sensor de lectura que
+actúa DESPUÉS de ejecutar en el QPU. Una GNN predice matrices de confusión locales **2×2 por
+qubit** (dinámicas: recalculadas con la calibración del día) y la corrección se aplica con un
+solver iterativo **GMRES matrix-free** que opera solo en el subespacio de bitstrings observados.
+El pipeline completo original era: `Circuito → GEM predice Δ_puertas → QPU → REM limpia
+histograma → ⟨O⟩_mit = ⟨O⟩_limpio − Δ`.
 
-**Respaldo en la literatura:**
-M3 [Nation et al., PRX Quantum 2021], Kim et al. [NJP 2022], Lee & Park [ML:ST 2023], Guo & Yang [arXiv 2026, tensor networks para readout correlacionado].
+### La matemática (el argumento de escalabilidad)
+
+- **El problema:** la mitigación de lectura clásica invierte una matriz de confusión global de
+  2ⁿ×2ⁿ → O(2^{3n}). Inviable a partir de ~15-20 qubits.
+- **Paso 1 — de global a local:** el error del sensor es mayoritariamente local, así que la
+  matriz global es (aprox.) el producto tensorial de matrices locales: A = A₁ ⊗ A₂ ⊗ … ⊗ Aₙ.
+  La GNN predice solo las Aᵢ (2×2 cada una; 4×4 para pares con crosstalk). El producto tensorial
+  JAMÁS se construye.
+- **Paso 2 — el subespacio de los shots:** con S shots, la máquina devuelve como máximo S
+  bitstrings distintos; los otros 2ⁿ−S estados tienen cero cuentas y son irrelevantes. El sistema
+  Ax = b se proyecta solo sobre los estados observados.
+- **Paso 3 — matrix-free:** GMRES (o BiCGSTAB, `scipy.sparse.linalg`) no necesita la matriz A,
+  solo una función v → A·v que aplica las matrices locales secuencialmente sobre los bitstrings
+  observados. Complejidad O(N), converge en pocas iteraciones.
+
+### Estrategia de entrenamiento (desacoplada — requiere simulador)
+
+El REM se entrenaría con un dataset PROPIO, distinto del GEM: circuitos triviales (preparar
+estados base y medir) con SOLO ruido de lectura activado en el simulador (`TRAIN_SHOTS=1024`,
+bajo a propósito: entrenar con histogramas casi perfectos sobreajustaría a distribuciones que
+el hardware real nunca produce). Nota clave: **aislar el ruido de lectura solo es posible en
+simulador** — el hardware real siempre devuelve ambos ruidos mezclados. En inferencia, el
+acoplamiento GEM+REM ocurriría solo en producción (secuencial), manteniendo el entrenamiento
+paralelo e independiente.
+
+### Métricas de evaluación
+
+| Métrica | Qué mide |
+|---|---|
+| Hellinger Fidelity (HF) | Parecido entre P_mit y P_ideal (0–1; 1 = idénticos) |
+| Total Variation Distance (TVD) | Diferencia absoluta total entre distribuciones (0 = perfecto) |
+| Ratio de mejora | HF_mit / HF_noisy (>1 = el REM ayuda) |
+
+### Qué queda preparado en el proyecto
+
+- Cada muestra `.pt` del dataset ya guarda `ideal_probs` y `noisy_probs` (distribuciones
+  completas) — los inputs/targets que el REM necesitaría.
+- La feature de readout_error por qubit ya está en la calibración descargada a diario.
+- Extensión natural: readout asimétrico (P(1|0) ≠ P(0|1), campos `prob_meas1_prep0`/
+  `prob_meas0_prep1` confirmados en la API de IBM) — la matriz 2×2 dejaría de ser simétrica.
+
+### Análisis SOTA (condensado de comparative_analysis §7)
+
+- **M3 es el fundamento directo**: mismo esquema subespacio+matrix-free, pero con matrices de
+  calibración FIJAS. El REM las haría DINÁMICAS (predichas por GNN según el estado del chip) —
+  ese es el hueco de contribución.
+- **La factorización local está justificada teóricamente**: Lee & Park demuestran que los errores
+  de lectura entre qubits no vecinos son condicionalmente independientes (reducción exponencial
+  del tamaño de red sin pérdida relevante).
+- **La no-linealidad justifica la GNN**: Kim et al. demuestran que el readout tiene componentes
+  no lineales que la inversión lineal clásica no captura y una red sí.
+- **Limitación conocida del diseño 2×2**: Guo & Yang (tensor networks, arXiv:2606.25974)
+  cuantifican que los modelos no correlacionados pierden errores de lectura correlacionados
+  entre qubits; un MPO los captura con coste ~lineal. Sería la evolución natural del REM.
+
+### Referencias completas (movidas de CLAUDE.md §8)
+
+- **M3 ⭐ — Nation, Kang, Sundaresan, Gambetta (IBM Research), PRX Quantum 2, 040326, 2021.**
+  "Scalable mitigation of measurement errors on quantum computers." DOI: 10.1103/PRXQuantum.2.040326.
+  Solver iterativo precondicionado en el subespacio de bitstrings observados, sin construir la
+  matriz 2ⁿ×2ⁿ; converge en O(1) pasos con órdenes de magnitud menos memoria. PDF en `doc/SOTA/papers/`.
+- **Kim, Oh, Chong, Hwang, Park — New Journal of Physics 24, 073009, 2022.** "Quantum readout
+  error mitigation via deep learning." DOI: 10.1088/1367-2630/ac7b3d. Primera aplicación de DL a
+  la corrección de lectura; supera a la inversión lineal en MSE/KL/infidelidad (IBM 5q). PDF en `papers/`.
+- **Lee & Park — Machine Learning: Science and Technology 4, 045051, 2023.** "Scalable quantum
+  measurement error mitigation via conditional independence and transfer learning."
+  DOI: 10.1088/2632-2153/ad1007. Independencia condicional → reducción exponencial; transfer
+  learning entre dispositivos (IBM 7q/13q). PDF en `papers/`.
+- **Guo & Yang — arXiv:2606.25974 (2026, preprint).** "Tensor network characterization and
+  mitigation of readout errors." MPO para errores de lectura correlacionados. PDF en `papers/`.
+
+**Coste de retomarlo:** alto — módulo completo (dataset propio + modelo + entrenamiento +
+evaluación). El diseño de arriba está cerrado; la implementación partiría de cero (el esqueleto
+borrado era solo docstrings).
 
 ---
 

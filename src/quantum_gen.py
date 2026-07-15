@@ -3,7 +3,7 @@
 """
 Módulo de Generación Cuántica y Extracción de Grafos.
 Actúa como Gemelo Digital del hardware de IBM, generando datos sintéticos
-ruidosos para entrenar el modelo GEM (y, como trabajo futuro, el REM).
+ruidosos para entrenar el modelo GEM y sus baselines de comparativa.
 """
 import gc
 import json
@@ -555,7 +555,7 @@ class QuantumGraphExtractor:
 
         data = Data(x=x_tensor, edge_index=edge_index_tensor, y=y_tensor)
 
-        # Distribuciones de probabilidad para REM (variables size: 2^n)
+        # Distribuciones de probabilidad completas (tamaño variable 2^n, para análisis)
         if ideal_probs is not None:
             data.ideal_probs = torch.tensor(ideal_probs, dtype=torch.float)
         if noisy_probs is not None:

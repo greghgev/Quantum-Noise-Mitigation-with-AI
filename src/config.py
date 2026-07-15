@@ -42,9 +42,9 @@ MAX_DEPTH: int = 50
 # ahora por el coste de cómputo del mini-run. NO CONFUNDIR con TRAIN_SHOTS.
 LABEL_SHOTS: int = 4096
 
-# Shots para el INPUT del REM (histogramas ruidosos que verá en producción). Bajo a
-# propósito: entrenar con demasiados shots (distribuciones casi perfectas) causaría
-# overfitting a datos limpios que nunca aparecen en hardware real (doc/fallas_y_soluciones.md).
+# Shots para HISTOGRAMAS realistas (reservado para usos futuros que consuman
+# distribuciones medidas). Bajo a propósito: entrenar con demasiados shots causaría
+# overfitting a distribuciones casi perfectas que el hardware real nunca produce.
 TRAIN_SHOTS: int = 1024
 
 # 3. Determinismo y Rutas

@@ -89,7 +89,7 @@
 
 **Liao 2024 ✅:** T1/T2/gate_error como features principales. Demuestra que la telemetría de hardware es crítica para la generalización entre días de calibración.
 
-**Kim et al. ✅:** No usa features de nodo de grafo — opera sobre mediciones directas. Relevante para REM.
+**Kim et al. ✅:** No usa features de nodo de grafo — opera sobre mediciones directas. Relevante solo para la línea futura de corrección de lectura (IDEAS_FUTURAS).
 
 ### TFM
 
@@ -205,11 +205,10 @@
 
 ### TFM
 
-**[SUPOSICIÓN TFM]** MSE para el GEM (sobre Δ). MSE para el REM (sobre las matrices de confusión locales 2×2). GEM y REM se entrenan de forma desacoplada y paralela.
+**[SUPOSICIÓN TFM]** MSE para el GEM (sobre Δ), con normalización de Δ por el rango del observable antes del loss.
 
 **Análisis de trade-off:**
 - MSE para GEM está bien justificado (GTraQEM, QEMFormer).
-- El desacoplamiento GEM/REM es una decisión arquitectónica sólida que evita contaminación cruzada de gradientes. No hay evidencia empírica contraria en los papers revisados.
 - La normalización del target Δ no está especificada. GTraQEM y QEMFormer la incluyen — Δ puede variar varios órdenes de magnitud según el tipo de circuito. Sin normalización, el MSE puede estar dominado por circuitos de alta profundidad.
 
 ---
@@ -258,48 +257,12 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 
 ---
 
-## 7. Módulo REM (Readout Error Mitigation)
+## 7. Corrección de lectura post-ejecución (fuera de alcance)
 
-> ⚠️ **Nota de vigencia (jul-2026):** el REM está FUERA del alcance del TFM tras el acuerdo con el
-> tutor (solo GEM + comparativa). Este análisis se conserva para la línea futura (IDEAS_FUTURAS IDEA-0).
-
-### Lo que hacen los papers
-
-**M3 — Nation et al. (PRX Quantum 2021) ✅ — Fundamento matemático del REM:**
-- Construye la matriz de asignación A (2^n × 2^n) de forma implícita mediante calibración: ejecuta n circuitos con todos los qubits en |0⟩ y n circuitos con todos los qubits en |1⟩ (total 2n circuitos).
-- Asume que cada qubit es independiente de los demás (errores de lectura i.i.d. entre qubits) → la matriz A se factoriza como producto tensorial de matrices 2×2 locales.
-- Resuelve A⁻¹ P_noisy = P_ideal usando GMRES solo en el subespacio de bitstrings observados → O(N·s) en lugar de O(2^{3n}).
-- [HECHO] Escala a 65 qubits en hardware IBM real con tiempo de post-procesado <1 segundo. "Orders of magnitude less memory than direct factorization."
-
-**Kim et al. (NJP 2022) ✅ — Primera DL para QREM:**
-- Red neuronal entrenada con mediciones de circuitos de calibración (0 y 1 state) por qubit.
-- La red aprende la función de corrección sin construir la matriz explícita.
-- [HECHO] Supera a la inversión matricial estándar (incluyendo M3) cuando los errores de lectura son correlacionados entre qubits vecinos (no i.i.d.).
-- [HECHO] Para ruido i.i.d., M3 y Kim et al. tienen rendimiento similar.
-
-**Lee & Park (ML:ST 2023) ✅ — Escalabilidad via independencia condicional:**
-- Explota la independencia condicional entre qubits no vecinos en la topología del chip.
-- [HECHO] Reducción exponencial del tamaño de la red neuronal sin pérdida de precisión en hardware IBM de 7 y 13 qubits.
-- Transfer learning entre dispositivos de distinta topología: añade factor constante de speedup.
-
-**Q-Cluster (IEEE QCE 2025) ✅ — QREM sin ML como componente central:**
-- La mitigación de readout se integra en el clustering (los errores de bitflip se modelan implícitamente como Hamming distance).
-- No hay un módulo QREM separado explícito.
-
-**GTraQEM / QEMFormer ✅:**
-- No incluyen un módulo REM separado. Predicen directamente ⟨O⟩_mit sin separar ruido de puertas del ruido de lectura.
-
-### TFM
-
-**[SUPOSICIÓN TFM]** GNN predice matrices de confusión locales 2×2 por qubit → resuelve A⁻¹ P_noisy = P_ideal usando GMRES en el subespacio de bitstrings observados. Entrenado con circuitos triviales y solo ruido de lectura activado en el simulador.
-
-**Análisis de trade-off:**
-- La combinación GNN + GMRES es original: M3 usa matrices fijas de calibración; el TFM las predice dinámicamente vía GNN → más adaptativo a drift de hardware.
-- La asunción de independencia por qubit (matrices 2×2 locales) es la misma que M3. Kim et al. demuestra que cuando hay correlaciones de lectura entre qubits vecinos, esta asunción falla. Para la topología Heavy-Hex, las correlaciones entre qubits adyacentes son no-negligibles.
-- Lee & Park justifica empíricamente que la factorización local es correcta para qubits distantes (no vecinos directos). El TFM está alineado con esta evidencia.
-- La GNN del REM opera sobre el grafo de topología del chip (no el DAG del circuito) → correcto: el readout error depende de la topología física, no del circuito ejecutado.
-
----
+> El análisis de esta categoría (M3, Kim et al., Lee & Park, Guo & Yang) se consolidó en
+> `IDEAS_FUTURAS.md` (IDEA-0) al quedar la corrección de lectura fuera del alcance del TFM
+> (acuerdo con el tutor, jul-2026). Los PDFs permanecen en `papers/` como bibliografía de la
+> línea futura.
 
 ## 8. Concept Drift y Variabilidad Temporal
 
@@ -346,7 +309,7 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 
 **QEM-Bench (QEMFormer ✅):**
 - 22 datasets estandarizados: 9 estándar + 9 zero-shot (circuitos no vistos en training) + 4 large-scale en hardware real (ibm_kyiv, ibm_brisbane).
-- Métricas: MAE y RMSE sobre ⟨O⟩. Hellinger Fidelity para distribuciones completas.
+- Métricas: MAE y RMSE sobre ⟨O⟩ (la fidelidad distribucional aplicaría solo a la línea futura de lectura).
 - [HECHO] Zero-shot (generalización a circuitos no vistos) es la evaluación más exigente. QEMFormer supera a GTraQEM incluso en zero-shot.
 
 **Q-Cluster ✅:**
@@ -372,7 +335,7 @@ Esta categoría es la más crítica para el TFM. Las diferencias respecto al SOT
 **Análisis de trade-off:**
 - El split OOD temporal es más conservador y más riguroso que lo que cualquier paper revisado propone. Es una fortaleza metodológica del TFM.
 - **Problema:** La evaluación exclusiva en datos simulados no valida el rendimiento en hardware real. Ningún paper del SOTA se limita a simulación. Sin al menos una validación en hardware IBM real, el TFM no puede comparar directamente sus resultados con el SOTA.
-- La métrica de evaluación (MAE/RMSE/Hellinger) no está especificada en los documentos actuales del TFM. QEM-Bench reporta MAE y RMSE sobre ⟨O⟩ — adoptar las mismas métricas facilitaría la comparación directa.
+- La métrica de evaluación (MAE/RMSE) no está especificada en los documentos actuales del TFM. QEM-Bench reporta MAE y RMSE sobre ⟨O⟩ — adoptar las mismas métricas facilitaría la comparación directa.
 
 ---
 
@@ -481,15 +444,7 @@ Las recomendaciones se ordenan por impacto esperado (alto → bajo) y urgencia (
 
 ---
 
-#### R7. Incluir Hellinger Fidelity como métrica de evaluación del REM [MEDIA PRIORIDAD]
-
-**Qué cambiar:** En `utils.py` y en los notebooks de evaluación, añadir la Hellinger Fidelity HF(P_mit, P_ideal) como métrica complementaria al MSE/RMSE. Q-Cluster usa HF como métrica primaria.
-
-**Por qué:** MSE sobre ⟨O⟩ no captura si la distribución completa P_mit es fiel a P_ideal. HF mide la similitud distribucional directamente y es la métrica estándar para REM en la literatura reciente (Q-Cluster, QEM-Bench).
-
-**Coste:** Bajo — una función en `utils.py`.
-
----
+#### R7. (Trasladada a IDEAS_FUTURAS) — aplicaba a la corrección de lectura, fuera del alcance vigente
 
 #### R8. Añadir Trotterized TFIM como tipo de circuito en el dataset [BAJA PRIORIDAD]
 
@@ -503,10 +458,8 @@ Las recomendaciones se ordenan por impacto esperado (alto → bajo) y urgencia (
 
 ### Cosas que NO cambiaría
 
-- **La separación GEM/REM:** Ningún paper muestra que la integración conjunta supere a la separación. GTraQEM y QEMFormer también distinguen implícitamente entre gate errors y readout errors.
 - **El split OOD temporal (5-1-1-3):** Es más riguroso que lo que propone cualquier paper revisado. Mantener.
 - **El vector de 19 dims del GEM:** Es competitivo con GTraQEM en cobertura de información. Solucionar los bugs pendientes (Bug 1) es suficiente.
-- **El uso de GMRES en el REM:** Es el mismo solver que M3 (paper de IBM Research). La validación matemática es sólida.
 - **HEA en lugar de Grover:** La sustitución ya fue validada en sesiones anteriores. HEA es el benchmark estándar para VQE en la literatura.
 
 ---
@@ -518,14 +471,14 @@ Ordenada por urgencia antes de implementar los módulos correspondientes. ⭐ = 
 | Prioridad | Paper | Razón | Antes de implementar |
 |---|---|---|---|
 | 1 ⭐ | **GTraQEM** (ICLR 2025) | Referencia directa del GEM. Arquitectura detallada del Graph Transformer + QCR | `gem_model.py` |
-| 2 ⭐ | **M3 — Nation et al.** (PRX Quantum 2021) | Fundamento matemático del módulo REM. GMRES en subespacio | `rem_model.py` + `utils.py` |
+| 2 ⭐ | **M3 — Nation et al.** (PRX Quantum 2021) | Fundamento matrix-free de la línea futura de corrección de lectura (IDEAS_FUTURAS IDEA-0) | IDEAS_FUTURAS (línea futura) |
 | 3 ⭐ | **QEMFormer** (ICML 2025) | Nuevo SOTA a superar. Entender el paradigma post-ejecución para argumentar el diferenciador del TFM | §4 del TFM |
 | 4 ⭐ | **Hirasaki et al.** (APL 2023) | Evidencia empírica del drift step-like. Crítico para corregir el modelo de drift lineal | `quantum_gen.py` Bug 1 |
 | 5 | **Placidi et al.** ⚠️ (arXiv 2026) | Ablation study del vector de features. Justifica por qué P_noisy no es necesario en el paradigma pre-ejecución | §4 del TFM (argumentación) |
-| 6 | **Kim et al.** (NJP 2022) | Primera DL para QREM. Baseline directo del REM | `rem_model.py` |
-| 7 | **Lee & Park** (ML:ST 2023) | Independencia condicional en QREM. Justifica las matrices 2×2 locales | `rem_model.py` |
+| 6 | **Kim et al.** (NJP 2022) | Primera DL para corrección de lectura (línea futura, IDEAS_FUTURAS) | IDEAS_FUTURAS (línea futura) |
+| 7 | **Lee & Park** (ML:ST 2023) | Independencia condicional en corrección de lectura (línea futura) | IDEAS_FUTURAS (línea futura) |
 | 8 | **Liao et al. 2024** (Nature MI) | GNN en hardware IBM real hasta 100 qubits. Escalabilidad | Notebooks de evaluación |
-| 9 | **Q-Cluster** (IEEE QCE 2025) | Paradigma alternativo de QREM. Baseline a comparar | Notebooks de evaluación |
+| 9 | **Q-Cluster** (IEEE QCE 2025) | Paradigma no supervisado de contraste. Dato: transfer Eagle→Heron R²=0.886 | Notebooks de evaluación |
 | 10 | **Liu et al.** (Frontiers 2026) | GNN vs. CNN para predicción de circuitos. Feature engineering | §4 del TFM |
 | 11 | **Liao et al. 2025** (npj QI) | Noise-agnostic approach. Útil para la sección de limitaciones | §6 del TFM (limitaciones) |
 | 12 | **Anchor / Huo et al.** (SIGMETRICS 2026) | Evidencia operacional de variabilidad temporal/espacial. Refuerza day_index y split temporal OOD | §3 del TFM |

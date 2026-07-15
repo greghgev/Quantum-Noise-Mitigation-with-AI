@@ -47,22 +47,18 @@ flowchart LR
     A["📄 Circuito cuántico<br/><i>el 'programa' que queremos ejecutar</i>"]
     B["🧠 Modelo 1: GEM<br/><i>predice cuánto se equivocará<br/>la máquina, ANTES de ejecutar</i>"]
     C["⚛️ Máquina IBM<br/><i>ejecuta el circuito tal cual<br/>(con sus errores)</i>"]
-    D["🧹 REM (trabajo futuro)<br/><i>limpiaría el sensor de lectura<br/>— fuera del alcance actual</i>"]
     E["✅ Resultado corregido<br/><i>resultado sucio − error predicho</i>"]
     A --> B
     B --> C
     C --> E
-    C -.-> D
-    D -.-> E
-    style D stroke-dasharray: 5 5,opacity:0.55
 ```
 
 El modelo se entrena con datos simulados (un "gemelo digital" de la máquina de
 IBM que genero en mi portátil) usando la calibración del chip. Para demostrar que
 aprende la *física* del error y no se limita a memorizar ejemplos, se evalúa con
-tipos de circuito que **jamás vio durante el entrenamiento** ("zero-shot") y —
-cuando la cuenta de IBM esté activa — con calibraciones reales de días nuevos
-que el modelo tampoco vio (tu punto 3: los datos de cada día como test).
+tipos de circuito que **jamás vio durante el entrenamiento** ("zero-shot") y con
+calibraciones reales de días nuevos que el modelo tampoco vio (tu punto 3: los
+datos de cada día como test — ya en recopilación diaria).
 
 ## 3. Qué hay construido y qué lo respalda
 
@@ -71,11 +67,10 @@ que el modelo tampoco vio (tu punto 3: los datos de cada día como test).
 | Revisión de la literatura (14 papers analizados frente a mis decisiones) | ✅ Hecho | `doc/SOTA/comparative_analysis.md` |
 | Generador de datos sintéticos (el "gemelo digital" de la máquina IBM) | ✅ Hecho | `src/quantum_gen.py` + 37/37 tests automáticos pasando |
 | Migración forzosa de hardware (IBM retiró la máquina de referencia original) | ✅ Hecho y documentado | `doc/migracion_heron.md` |
-| Dataset preliminar (~180 muestras) para validar el pipeline | ✅ Hecho | `data/` (versionado con DVC) + análisis visual en `notebooks/01_eda_ibm_telemetry.ipynb` |
+| Dataset preliminar (~180 muestras) con calibración REAL de IBM | ✅ Hecho | `data/` (versionado con DVC) + análisis visual en `notebooks/01_eda_ibm_telemetry.ipynb` |
 | La comparativa: Ridge + Random Forest + GEM (Graph Transformer) | ⏳ Siguiente paso | Diseño cerrado (`ROADMAP.md` TAREA 4); código pendiente |
-| Dataset completo (5.000 muestras) | ⏳ Pendiente | Espera acceso IBM (para usar calibración real) |
-| Recopilación diaria de calibración real (tu punto 3) | 🔒 Bloqueado temporalmente | La cuenta IBM está en verificación manual (trámite administrativo, no técnico) |
-| Módulo REM (corrección del sensor post-ejecución) | 🔮 Trabajo futuro | Decisión conjunta jul-2026: fuera del alcance del TFM; esqueletos conservados |
+| Dataset completo (5.000 muestras) | ⏳ Pendiente | Decisión de parámetros (nº de shots) antes del run largo |
+| Recopilación diaria de calibración real (tu punto 3) | ✅ En marcha | Cuenta IBM activa; 29+ días de 'partes médicos' reales ya archivados (`data/raw/calib_history/`) |
 
 ## 4. Mapa de lectura recomendado
 
@@ -113,6 +108,5 @@ En cualquier caso, **no hacen falta los datos para entender el proyecto**: el no
 | **Calibración** | El "parte médico" diario que IBM publica de cada máquina |
 | **Drift** | La degradación/variación de la máquina con el paso del tiempo |
 | **GEM** | El modelo del TFM: predice el error del circuito ANTES de ejecutar |
-| **REM** | (Trabajo futuro) Corregiría el error del sensor DESPUÉS de ejecutar |
 | **Zero-shot** | Evaluar con tipos de circuito que el modelo nunca vio al entrenar |
 | **[SUPOSICIÓN]** | Marca que uso en todo el proyecto para señalar cualquier valor o decisión no verificada empíricamente |

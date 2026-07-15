@@ -1,14 +1,11 @@
 """
 Evalúa los modelos de la comparativa (Ridge, RF, GEM) sobre test OOD y zero-shot.
-(Alcance jul-2026: solo GEM; las opciones REM se conservan para el trabajo futuro.)
 
 Reporta todas las métricas:
   GEM: MAE, RMSE, R², mejora relativa
-  REM: Hellinger Fidelity, TVD, ratio de mejora
 
 Uso:
-    conda run -n tfm python scripts/evaluate.py --gem models/gem_best.pt --rem models/rem_best.pt
-"""
+    conda run -n tfm python scripts/evaluate.py --gem models/gem_best.pt"""
 
 import argparse
 import sys
@@ -21,12 +18,9 @@ from src.config import set_global_seeds  # noqa: E402
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Evalúa el pipeline GEM + REM")
+    parser = argparse.ArgumentParser(description="Evalúa los modelos de la comparativa")
     parser.add_argument(
         "--gem", type=str, required=True, help="Path al checkpoint del GEM (.pt)"
-    )
-    parser.add_argument(
-        "--rem", type=str, required=True, help="Path al checkpoint del REM (.pt)"
     )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
@@ -46,14 +40,14 @@ def main():
         else [args.split]
     )
 
-    print(f"[evaluate] GEM: {args.gem} | REM: {args.rem}")
+    print(f"[evaluate] GEM: {args.gem}")
     print(f"[evaluate] Splits: {splits}")
 
     # TODO (TAREA 5): importar y ejecutar la evaluación
     # from src.inference import evaluate_pipeline
     # from src.utils import compute_all_metrics
     # for split in splits:
-    #     results = evaluate_pipeline(args.gem, args.rem, split=split)
+    #     results = evaluate_models(args.gem, split=split)
     #     metrics = compute_all_metrics(results)
     #     print(f"\n=== {split.upper()} ===")
     #     for k, v in metrics.items():

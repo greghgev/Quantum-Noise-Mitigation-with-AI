@@ -1,6 +1,6 @@
 """
-Genera figures/pipeline_tfm.png — diagrama del pipeline GEM → QPU → REM en
-lenguaje llano, para GUIA_TUTOR.md, la memoria y presentaciones.
+Genera figures/pipeline_tfm.png — diagrama del pipeline del TFM (GEM, pre-ejecución)
+en lenguaje llano, para GUIA_TUTOR.md, la memoria y presentaciones.
 
 Uso:
     conda run -n tfm python scripts/make_pipeline_figure.py
@@ -34,7 +34,7 @@ BOXES = [
     (
         3.1,
         BLUE,
-        "Modelo 1 — GEM",
+        "Modelo GEM",
         "Graph Transformer\npredice Δ",
         "Predice cuánto se\nequivocará la máquina,\nANTES de ejecutar",
     ),
@@ -46,14 +46,7 @@ BOXES = [
         "Ejecuta el circuito\ntal cual, con sus\nerrores físicos",
     ),
     (
-        8.3,
-        AQUA,
-        "REM (futuro)",
-        "GNN + álgebra\nmatrix-free",
-        "Trabajo futuro:\nlimpiaría el sensor de\nlectura tras ejecutar",
-    ),
-    (
-        10.9,
+        8.6,
         YELLOW,
         "Resultado\ncorregido",
         "⟨O⟩ = ruidoso − Δ",
@@ -65,7 +58,7 @@ W, H, Y = 2.1, 1.55, 2.2
 
 
 def main():
-    fig, ax = plt.subplots(figsize=(13.2, 4.4), dpi=200)
+    fig, ax = plt.subplots(figsize=(11.0, 4.4), dpi=200)
     fig.patch.set_facecolor(SURFACE)
     ax.set_facecolor(SURFACE)
 
@@ -132,16 +125,16 @@ def main():
     )
     ax.annotate(
         "DESPUÉS de ejecutar",
-        xy=(9.35, Y + H + 0.55),
+        xy=(7.55, Y + H + 0.55),
         ha="center",
         fontsize=9,
         color=AQUA,
         fontweight="bold",
     )
     ax.plot([2.9, 5.4], [Y + H + 0.38, Y + H + 0.38], color=BLUE, lw=1.2)
-    ax.plot([8.1, 10.6], [Y + H + 0.38, Y + H + 0.38], color=AQUA, lw=1.2)
+    ax.plot([5.5, 9.6], [Y + H + 0.38, Y + H + 0.38], color=AQUA, lw=1.2)
 
-    ax.set_xlim(0, 13.6)
+    ax.set_xlim(0, 11.2)
     ax.set_ylim(0.4, 4.6)
     ax.axis("off")
     fig.suptitle(

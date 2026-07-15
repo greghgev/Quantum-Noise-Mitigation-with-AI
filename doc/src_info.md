@@ -15,16 +15,14 @@ El objetivo de esta estructura es garantizar la modularidad, la reproducibilidad
 ### 2. Arquitecturas de Deep Learning (PyTorch)
 Para evitar el acoplamiento y facilitar la depuración, los modelos residen en archivos separados:
 * **`gem_model.py` (Gate Error Mitigation)**: Define la arquitectura del Graph Transformer. Ingiere el grafo del circuito y la telemetría de las compuertas lógicas para actuar como un regresor continuo, prediciendo la desviación ($\Delta$) del valor esperado debido al ruido térmico y de despolarización.
-* **`rem_model.py` (Readout Error Mitigation)** 🔮 TRABAJO FUTURO —: Define la arquitectura de la Graph Neural Network (GNN). Predice las matrices de confusión marginales locales para el error de los sensores láser. Incluye la lógica algorítmica para el enfoque *Matrix-Free*, proyectando la solución en el subespacio de *shots* observados para mantener una complejidad $\mathcal{O}(N)$.
-
 ### 3. Orquestación y MLOps
 * **`train.py`**: Pipeline de entrenamiento de la comparativa (alcance vigente jul-2026): entrena los 3 modelos — Ridge, Random Forest y GEM — con protocolo idéntico (mismos splits, métricas y semilla). Integra MLflow / Weights & Biases para el registro automatizado de métricas, artefactos y versionado de pesos.
 * **`features.py` / `baselines.py`** (pendientes): features agregadas del circuito para los baselines tabulares, y los modelos Ridge + Random Forest (sklearn).
-* **`inference.py`** 🔮 TRABAJO FUTURO: el pipeline de producción GEM → QPU → REM del diseño original. Fuera del alcance vigente (ver `IDEAS_FUTURAS.md` IDEA-0).
+* **`inference.py`**: (reservado) punto de inferencia del GEM en producción; se definirá en TAREA 4.
 
 ### 4. Configuración y Utilidades Core
 * **`config.py`**: El centro de control del repositorio. Ningún valor de hiperparámetro está *hardcodeado* en el código fuente. Este archivo gestiona las variables de entorno (`.env`), topes físicos (ej. 15 qubits max, 1024 shots) y, crucialmente, las semillas aleatorias (`seeds`) globales para asegurar el determinismo estadístico en toda la investigación.
-* **`utils.py`**: Librería de funciones puras. Contiene operaciones matemáticas aisladas que ensucian la legibilidad de los modelos, como el cálculo de tensores unitarios, *One-Hot Encodings*, cálculos de Fidelidad Cuántica y llamadas de bajo nivel al *solver* iterativo GMRES de SciPy.
+* **`utils.py`**: Librería de funciones puras. Contiene operaciones matemáticas aisladas que ensucian la legibilidad de los modelos, como las métricas de la comparativa (MAE, RMSE, R², mejora relativa), *One-Hot Encodings* y utilidades numéricas compartidas.
 
 ---
 
@@ -32,4 +30,4 @@ Para evitar el acoplamiento y facilitar la depuración, los modelos residen en a
 
 1. **Desacoplamiento de Ciclo de Vida:** Las modificaciones en el simulador de ruido (`quantum_gen.py`) no rompen el código de carga de datos (`dataset.py`) ni alteran la arquitectura de la red (`gem_model.py`).
 2. **Reproducibilidad:** Todas las llamadas estocásticas dependen de un estado centralizado en `config.py`.
-3. **Escalabilidad de Memoria:** El código prohíbe explícitamente la construcción de matrices $2^n \times 2^n$ durante las fases de mitigación en `rem_model.py`, permitiendo su ejecución local en estaciones de trabajo con memoria RAM limitada.
+3. **Escalabilidad de Memoria:** Prohibido construir objetos de tamaño $2^n \times 2^n$; el ground truth usa Statevector ($2^n$) acotado por `MAX_QUBITS=15` para ejecutar en 16 GB de RAM.

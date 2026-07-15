@@ -12,19 +12,17 @@
 
 **Título:** Mitigación de Ruido Cuántico en Hardware NISQ mediante Deep Learning
 
-**Problema:** Los procesadores cuánticos actuales (era NISQ) introducen dos tipos de ruido que degradan los resultados:
-1. **Ruido dinámico de puertas** — acumulación térmica y de despolarización durante la ejecución del circuito.
-2. **Ruido de lectura (readout)** — errores del sensor láser en la medición final.
+**Problema:** Los procesadores cuánticos actuales (era NISQ) introducen ruido que degrada los resultados: errores en las puertas (acumulación térmica/despolarización durante la ejecución) y errores del sensor de lectura en la medición final. El GEM predice su efecto conjunto (Δ total) antes de ejecutar.
 
-**⚠️ ALCANCE VIGENTE (jul-2026, acordado con el tutor): SOLO GEM, como comparativa de modelos.**
-El REM es TRABAJO FUTURO (ficheros conservados como esqueleto; ver IDEAS_FUTURAS.md). Δ es ahora
-el **error TOTAL** (puertas + readout) — el desacoplamiento de ruidos queda anulado.
+**⚠️ ALCANCE VIGENTE (jul-2026, acordado con el tutor): el módulo GEM, como comparativa de modelos.**
+Δ es el **error TOTAL** del circuito (puertas + readout). La corrección de lectura post-ejecución
+del diseño original quedó fuera del alcance — su diseño completo vive ÚNICAMENTE en
+`IDEAS_FUTURAS.md` (IDEA-0); no reintroducirla en el resto del repo.
 
 **Solución (alcance vigente):**
 
 - **GEM (Gate Error Mitigation):** Graph Transformer que ingiere el DAG del circuito y la telemetría del chip, y predice un valor continuo de desviación **Δ** (error total) ANTES de ejecutar. El circuito se ejecuta *intacto* en IBM (no se modifica — ver "Trampa del Transpilador" en sección 6).
 - **Comparativa de 3 modelos** (encuadre del TFM): **Ridge** (regresión lineal clásica) + **Random Forest** (mejor baseline según Liao 2024) + **GEM** (Graph Transformer). Baselines tabulares sobre features agregadas del circuito; protocolo de evaluación IDÉNTICO para los tres. Lo que se valora es la comparativa rigurosa, no que un modelo sea excelente.
-- 🔮 *Trabajo futuro — REM (Readout Error Mitigation):* GNN que predice matrices de confusión locales 2×2 por qubit + corrección Matrix-Free (GMRES en subespacio de bitstrings observados, O(N)).
 
 **Flujo de inferencia (alcance vigente):**
 ```
@@ -44,7 +42,7 @@ Circuito usuario → GEM predice Δ (error total) → Ejecución en IBM QPU → 
 | qiskit-ibm-runtime | `0.47.0` |
 | PyTorch | latest (sin pin de versión) |
 | torch-geometric | latest (canal `pyg`) |
-| SciPy | sin pin — crítico para GMRES (`scipy.sparse.linalg`) |
+| SciPy | sin pin — utilidades numéricas |
 | MLflow | latest |
 | Weights & Biases | latest |
 | python-dotenv | latest — carga `.env` |
@@ -58,10 +56,9 @@ Circuito usuario → GEM predice Δ (error total) → Ejecución en IBM QPU → 
 ```
 TFM-Quantum/
 ├── configs/
-│   ├── gem_config.yaml         # Hiperparámetros GEM (Graph Transformer + QCR)
-│   └── rem_config.yaml         # Hiperparámetros REM (GNN + GMRES)
+│   └── gem_config.yaml         # Hiperparámetros GEM (Graph Transformer + QCR)
 ├── data/
-│   ├── raw/                    # Calibración IBM (ibm_kingston_calib.json) — generado en runtime
+│   ├── raw/                    # Calibración REAL de ibm_kingston + calib_history/ (snapshots diarios)
 │   └── processed/              # Grafos .pt listos para PyTorch Geometric
 │       ├── train/              # Random, HEA, TFIM (días 1–5)
 │       ├── val/                # In-distribution validation (día 6)
@@ -84,20 +81,18 @@ TFM-Quantum/
 ├── notebooks/          # 01 ✅ ejecutado (EDA divulgativa) · 02-05 y main.ipynb vacíos (placeholders)
 ├── scripts/            # Entry-points ejecutables (importan de src/, no contienen lógica)
 │   ├── generate.py     # Genera el dataset (--mini 150 muestras | --full 5000)
-│   ├── make_synthetic_calib.py  # Calibración sintética Heron mientras no hay credenciales IBM
 │   ├── make_pipeline_figure.py  # Genera figures/pipeline_tfm.png (diagrama divulgativo)
+│   ├── collect_calibration.py   # TAREA 6a: snapshot diario de calibración real (--backfill N)
 │   ├── train_gem.py    # Entrena el GEM con gem_config.yaml
-│   ├── train_rem.py    # Entrena el REM con rem_config.yaml
 │   └── evaluate.py     # Evalúa pipeline completo (--split test|zeroshot_qaoa|zeroshot_qft|all)
 ├── src/                # Código fuente de producción (lógica real — importado por scripts/)
 │   ├── config.py       ✅ COMPLETO
 │   ├── quantum_gen.py  ✅ COMPLETO (TAREA 1 + 3 + 3b + 8)
 │   ├── dataset.py      ❌ VACÍO
 │   ├── gem_model.py    ❌ VACÍO
-│   ├── rem_model.py    🔮 TRABAJO FUTURO (REM fuera de alcance)
 │   ├── train.py        ⚠️  ESQUELETO (solo docstring)
 │   ├── utils.py        ⚠️  ESQUELETO (solo docstring)
-│   └── inference.py    🔮 TRABAJO FUTURO (pipeline GEM→QPU→REM)
+│   └── inference.py    ⏳ RESERVADO (inferencia del GEM, se definirá en TAREA 4)
 ├── tests/
 │   └── test_quantum_gen.py  ✅ 37/37 PASSED
 ├── .dvc/               # Metadata DVC (versionado)
@@ -118,7 +113,7 @@ TFM-Quantum/
 ## 4. Estado actual de implementación
 
 ### Completos
-- **`src/config.py`** — Carga `.env`, define rutas (`BASE_DIR`, `RAW_DATA_PATH`, `PROCESSED_DATA_PATH`, `MODELS_PATH`), backend (`BACKEND_NAME=ibm_kingston`, `BASIS_GATES=[cz,id,rz,sx,x]`), constantes físicas (`MAX_QUBITS=15`, `MAX_DEPTH=50`, `LABEL_SHOTS=4096` para etiquetas Δ, `TRAIN_SHOTS=1024` para inputs REM, `SEED=42`), función `set_global_seeds()`.
+- **`src/config.py`** — Carga `.env`, define rutas (`BASE_DIR`, `RAW_DATA_PATH`, `PROCESSED_DATA_PATH`, `MODELS_PATH`), backend (`BACKEND_NAME=ibm_kingston`, `BASIS_GATES=[cz,id,rz,sx,x]`), constantes físicas (`MAX_QUBITS=15`, `MAX_DEPTH=50`, `LABEL_SHOTS=4096` para etiquetas Δ, `TRAIN_SHOTS=1024` para histogramas realistas (uso futuro), `SEED=42`), función `set_global_seeds()`.
 
 - **`src/quantum_gen.py`** ✅ COMPLETO (TAREA 1 + TAREA 3 + migración Heron) — 4 clases:
   - `CircuitFactory`: genera circuitos random, QFT, QAOA (ZZ por arista), HEA, Trotterized TFIM; transpila a puertas nativas IBM Heron (`cz` como 2q).
@@ -135,9 +130,8 @@ TFM-Quantum/
 - **`src/train.py`** — Entrenamiento de los 3 modelos con protocolo idéntico + MLflow/W&B.
 - **`src/utils.py`** — Métricas GEM (MAE, RMSE, R², mejora relativa), encodings.
 
-### 🔮 Trabajo futuro (fuera del alcance vigente — NO implementar)
-- **`src/rem_model.py`** — GNN + Matrix-Free GMRES (módulo REM completo).
-- **`src/inference.py`** — Pipeline producción GEM → QPU → REM.
+### Reservado
+- **`src/inference.py`** — punto de inferencia del GEM en producción; se definirá en TAREA 4.
 - **Notebooks 02–05** — Pendientes de implementar (0 bytes). `main.ipynb` es un placeholder vacío (era de pruebas).
   - **Notebook 01** ✅ COMPLETO — EDA divulgativa ejecutada (circuito dibujado, DAG coloreado, heatmap de drift, franja de shot-noise, conclusiones sobre outputs reales).
 
@@ -166,7 +160,7 @@ TFM-Quantum/
 - **DVC** versiona datasets y modelos grandes (`.pt`, `ibm_kingston_calib.json`). Remote local en `~/TFM/dvc-remote/`. Inicializado: `dvc init` ya ejecutado. Comandos habituales: `dvc add data/processed/` → `dvc push`.
 - **pre-commit hooks** instalados (`pre-commit install` ya ejecutado). En cada `git commit` se ejecutan automáticamente: `black` (formateo), `flake8 --max-line-length=100` (linting), trailing whitespace, YAML check, detección de claves privadas, y bloqueo de ficheros >500 KB.
 - **`scripts/` vs `src/`**: `src/` contiene toda la lógica (clases, funciones, modelos). `scripts/` son entry-points delgados que importan de `src/` y orquestan el pipeline. **Nunca añadir lógica de negocio directamente en `scripts/`**.
-- **Configs YAML**: toda configuración de hiperparámetros va en `configs/gem_config.yaml` y `configs/rem_config.yaml`. Los scripts los leen con `yaml.safe_load`. Nunca hardcodear hiperparámetros en código.
+- **Configs YAML**: toda configuración de hiperparámetros va en `configs/` (gem_config.yaml y, en TAREA 4, baselines_config.yaml). Los scripts los leen con `yaml.safe_load`. Nunca hardcodear hiperparámetros en código.
 
 ### Credenciales IBM
 - **Canal:** `"ibm_quantum_platform"` — es el canal moderno (Open Plan + Plan de pago). **NO** usar `"ibm_quantum"` (legacy, deprecado).
@@ -174,8 +168,8 @@ TFM-Quantum/
   - **Historia:** el backend original era `ibm_kyiv` (Eagle r3, 127q, Heavy-Hex), retirado por IBM el 18-abr-2025. Toda la familia Eagle está retirada desde abr-2026 — no existe alternativa Eagle.
 - **Token:** variable `IBM_TOKEN` en `.env`.
 - **CRN de instancia:** variable `IBM_INSTANCE_CRN` en `.env`. Se pasa como `instance=` al construir `QiskitRuntimeService`.
-  - ⚠️ Estado jul-2026: cuenta IBM antigua sin instancias (expiró); cuenta nueva pendiente de verificación por IBM (error tarjeta → email a verify@us.ibm.com enviado). Hasta entonces se usa calibración sintética.
-- **Caché de calibración:** `data/raw/ibm_kingston_calib.json` — si existe, se carga offline; si no, se descarga de IBM y se guarda. La actual es **SINTÉTICA** (generada por `scripts/make_synthetic_calib.py` con valores plausibles Heron r2 marcados [SUPOSICIÓN]) — borrarla y relanzar para descargar la real cuando haya credenciales.
+  - ✅ Cuenta IBM ACTIVA (14-jul-2026): upgrade aprobado, instancia Open Plan us-east creada, credenciales en `.env` verificadas (`ibm_kingston` visible junto a ibm_fez/ibm_marrakesh).
+- **Caché de calibración:** `data/raw/ibm_kingston_calib.json` — si existe, se carga offline; si no, se descarga de IBM y se guarda. La actual es **REAL** (descargada de IBM el 14-jul-2026).
 
 ### Decisión arquitectónica GEM: "Trampa del Transpilador" + nodo virtual QCR
 El Graph Transformer **no** reescribe ni modifica el circuito. Solo predice Δ (desviación continua). El circuito se ejecuta intacto para no destruir la unitaria del algoritmo del usuario.
@@ -183,9 +177,6 @@ El Graph Transformer **no** reescribe ni modifica el circuito. Solo predice Δ (
 **Nodo virtual QCR (Quantum Circuit Representative):** nodo ficticio añadido al grafo con aristas directas a todos los nodos reales. Durante la atención del Transformer, todos los nodos "hablan" con el QCR simultáneamente y él les responde a todos. Al final del forward pass, el embedding del QCR se usa para predecir Δ (en lugar de average pooling sobre todos los nodos). Permite contexto global sin message-passing. Respaldado empíricamente por GTraQEM [Bao et al., ICLR 2025].
 
 **Δ global vs. Δ por observable — limitación conocida:** el GEM predice un único Δ escalar para todo el circuito. GTraQEM predice un Δ por cada observable medido (⟨Z_i⟩, ⟨Z_iZ_j⟩, etc.), lo que es más preciso cuando distintos observables tienen sensibilidades de ruido distintas. La simplificación del TFM reduce la complejidad de implementación a costa de expresividad. Se documenta en `IDEA_GENERAL_TFM.md` como limitación y en `IDEAS_FUTURAS.md` como extensión posible.
-
-### Decisión arquitectónica REM: "Matrix-Free Subspace Inversion"
-La GNN predice matrices 2×2 locales por qubit (y opcionalmente 4×4 para vecinos con crosstalk). **Nunca** se construye la matriz global 2^n × 2^n. El solver GMRES de SciPy opera en el subespacio de bitstrings observados (máx. 1024 con TRAIN_SHOTS=1024). Complejidad: O(N).
 
 ### Split temporal OOD (Concept Drift)
 - Train: días 1–5 | Val: día 6 | Gap sin datos: día 7 | Test OOD: días 8–10.
@@ -218,8 +209,6 @@ La GNN predice matrices 2×2 locales por qubit (y opcionalmente 4×4 para vecino
 
 Las métricas se calculan con protocolo IDÉNTICO para los 3 modelos de la comparativa (Ridge, RF, GEM) y se reportan separadas por: in-distribution / zero-shot QAOA / zero-shot QFT / por día del split temporal.
 
-🔮 *Trabajo futuro — métricas REM (si se retoma):* Hellinger Fidelity, TVD, ratio HF_mit/HF_noisy.
-
 ### Vector de features por nodo (grafo) — 19 dimensiones objetivo
 
 | # | Feature | Dims | Estado |
@@ -243,15 +232,15 @@ Nota: `gate_error` y `gate_length` son estándar en la literatura (QuESt [Wang e
 
 **Los 5 bugs de TAREA 1 están corregidos** (ver ROADMAP.md). Limitaciones activas:
 
-1. **Calibración sintética (no real):** `data/raw/ibm_kingston_calib.json` está generado por `scripts/make_synthetic_calib.py` con valores plausibles Heron r2 marcados [SUPOSICIÓN] (20 qubits, cadena lineal). Cuando la cuenta IBM esté verificada: borrar el JSON, relanzar `HardwareTelemetrics` para descargar calibración real, y regenerar el dataset.
+1. ~~Calibración sintética~~ **RESUELTO (jul-2026):** la calibración es REAL de `ibm_kingston` (156 qubits, 352 aristas), con histórico diario en `data/raw/calib_history/` (29+ snapshots via `scripts/collect_calibration.py`). El dataset está regenerado con ella. El generador sintético fue eliminado (historial git).
 
 2. **Noise model solo despolarización:** `thermal_relaxation_error` + `depolarizing_error` combinados producen "Kraus is empty" en Aer 0.17. Se usa solo despolarización; el efecto T1/T2 se modela implícitamente vía drift del gate_error. Documentado en `build_noise_model_for_day()`.
 
 3. **[SUPOSICIÓN] Error CZ ≈ 5× error 1q promedio** de los dos qubits del par — ratio típico NISQ, no dado por la API de calibración. Ver `_populate_noise_model()`.
 
-4. **Readout simétrico:** P(0→1) = P(1→0). IBM real es asimétrico — mejora planificada en TAREA 7a (feature vector pasaría a 20 dims).
+4. **Readout simétrico en el noise model:** P(0→1) = P(1→0). IBM real es asimétrico (campos `prob_meas1_prep0`/`prob_meas0_prep1` confirmados en la API) — mejora planificada en TAREA 7a (feature vector pasaría a 20 dims).
 
-5. **`coupling_map` serialización tuplas vs. listas:** `backend.coupling_map.get_edges()` devuelve tuplas; al cargar desde JSON se recuperan como listas anidadas. Sin impacto detectado (el código itera con desempaquetado), pero verificar en la primera descarga real de Heron.
+5. ~~`coupling_map` serialización~~ **RESUELTO (jul-2026):** `get_edges()` devuelve un `EdgeList` de rustworkx no serializable — fix aplicado (conversión a listas) en la primera descarga real, tal y como este punto predecía.
 
 ---
 
@@ -285,24 +274,8 @@ Nota: `gate_error` y `gate_length` son estándar en la literatura (QuESt [Wang e
 - **Bao, Zhong, Ye, Tang, Yan (Shanghai Jiao Tong U.) — ICML 2025, PMLR v267.** "QEM-Bench: Benchmarking Learning-based Quantum Error Mitigation and QEMFormer as a Multi-ranged Context Learning Baseline." *(Código prometido en GitHub, no disponible aún al momento de verificación.)*
   **QEM-Bench**: 22 datasets estandarizados (9 estándar + 9 zero-shot + 4 large-scale IBM real). Large-scale usa `ibm_kyiv` (50q) y `ibm_brisbane` (63q) — mismo hardware que el TFM. Tipos: Trotterized TFIM, Random, QAOA. Baselines incluidos: GNN, MLP, ZNE, CDR, RF, GTranQEM.
   **QEMFormer**: Arquitectura dos ramas — Rama MLP (contexto corto, mean pooling global) + Rama Graph Transformer (topología, largo alcance). Node features: gate type one-hot + qubit multi-hot + ángulos. Global features: estadísticas del circuito (8 dims) + expectation values Pauli (3×N_q) + P_noisy (EV ruidoso ya medido). **QEMFormer > GTranQEM en todos los settings.** ibm_kyiv: MAE=0.018, RMSE=0.026.
-  **Argumento diferenciador del TFM vs. QEMFormer:** (1) QEMFormer requiere P_noisy como input — necesita ejecutar el circuito antes de mitigar; nuestro GEM opera PRE-ejecución con solo telemetría del hardware → paradigma más eficiente operacionalmente. (2) QEMFormer usa multi-hot qubit encoding (no generalizable a N arbitrario); nuestro vector no codifica identidad de qubit → más generalizable. (3) QEMFormer no modela Concept Drift temporal; nuestro day_index es feature explícito. (4) El TFM separa ruido de puertas (GEM) y de lectura (REM) — QEMFormer los confunde en un solo predictor.
+  **Argumento diferenciador del TFM vs. QEMFormer:** (1) QEMFormer requiere P_noisy como input — necesita ejecutar el circuito antes de mitigar; nuestro GEM opera PRE-ejecución con solo telemetría del hardware → paradigma más eficiente operacionalmente. (2) QEMFormer usa multi-hot qubit encoding (no generalizable a N arbitrario); nuestro vector no codifica identidad de qubit → más generalizable. (3) QEMFormer no modela Concept Drift temporal; nuestro day_index es feature explícito.
   **Nota GTraQEM:** GTraQEM sigue siendo referencia válida de arquitectura base (Graph Transformer + nodo virtual QCR). QEMFormer es el nuevo techo de rendimiento a superar.
-
----
-
-## Referencias — Módulo REM y Readout Error Mitigation
-
-### Fundamento directo del módulo REM — M3 ✅ [REVISADO — PRX Quantum 2021, IBM Research] ⭐
-- **Nation, Kang, Sundaresan, Gambetta (IBM Research) — PRX Quantum 2, 040326, 2021.** "Scalable mitigation of measurement errors on quantum computers." DOI: 10.1103/PRXQuantum.2.040326
-  M3 (Matrix-free Measurement Mitigation): solver iterativo precondicionado que opera en el **subespacio de bitstrings ruidosos observados**, sin construir la matriz de asignación global 2^n × 2^n. Converge en O(1) pasos y usa "orders of magnitude less memory than direct factorization". De investigadores IBM (Gambetta = Chief Quantum Officer). **Relación con TFM:** el módulo REM es una extensión directa de M3: M3 usa matrices de confusión fijas por qubit; nuestro REM las predice dinámicamente via GNN y luego aplica el mismo solver GMRES en subespacio → más adaptativo al ruido del día. **Citar obligatoriamente en §3 y en la descripción del módulo REM.**
-
-### Primera aplicación de deep learning a QREM ✅ [REVISADO — New Journal of Physics 2022]
-- **Kim, Oh, Chong, Hwang, Park — New Journal of Physics 24, 073009, 2022.** "Quantum readout error mitigation via deep learning." DOI: 10.1088/1367-2630/ac7b3d
-  Red neuronal entrenada con mediciones de circuitos de un solo qubit para corregir ruido de lectura no-lineal en IBM 5-qubit. Supera a la inversión lineal estándar en MSE, KL-divergence e infidelidad. **Diferencia con REM del TFM:** ellos predicen corrección directa (caja negra); nuestro REM predice matrices de confusión locales 2×2 por qubit (interpretable) + solver GMRES → escalable a N qubits. Útil como baseline de comparación para el módulo REM.
-
-### Escalabilidad QREM via independencia condicional + transfer learning ✅ [REVISADO — ML: Science and Technology 2023]
-- **Lee & Park — Machine Learning: Science and Technology 4, 045051, 2023.** "Scalable quantum measurement error mitigation via conditional independence and transfer learning." DOI: 10.1088/2632-2153/ad1007
-  Explota la independencia condicional entre qubits no vecinos para reducción **exponencial** del tamaño de red neuronal. Transfer learning añade factor constante de speedup. Validado en IBM 7q y 13q. **Conecta con la arquitectura REM del TFM:** la elección de matrices 2×2 locales por qubit en lugar de la matriz global 2^n × 2^n tiene fundamento en este resultado — los errores de lectura entre qubits distantes son condicionalmente independientes.
 
 ---
 

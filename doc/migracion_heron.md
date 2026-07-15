@@ -45,8 +45,8 @@ Cita textual de IBM: *"The global fleet has now fully transitioned away from Eag
 - `src/quantum_gen.py`: transpilación a base CZ; one-hot posición 0 = `cz`; noise model
   registra el error CZ **en ambas orientaciones** del par (CZ es simétrica pero Aer asocia
   el error al orden exacto de qubits del circuito transpilado).
-- `scripts/make_synthetic_calib.py` (nuevo): calibración sintética Heron r2 reproducible
-  (seed 42) mientras no haya credenciales IBM.
+- `scripts/make_synthetic_calib.py`: calibración sintética Heron r2 reproducible mientras no
+  hubo credenciales (eliminado el 14-jul-2026 al llegar la calibración real — historial git).
 - `tests/test_quantum_gen.py`: adaptados a CZ — 36/36 PASSED.
 - Mini-dataset Eagle (178 muestras) eliminado y regenerado con base Heron.
 - Documentación actualizada: CLAUDE.md, README.md, ROADMAP.md, dataset_info.md,
@@ -56,34 +56,27 @@ Cita textual de IBM: *"The global fleet has now fully transitioned away from Eag
 
 ## 4. Bloqueado por credenciales IBM (recuperable)
 
-Estado jul-2026: cuenta antigua sin instancias (expirada); cuenta nueva pendiente de
-verificación manual por IBM (email a verify@us.ibm.com, código REG-PAYGO-UPGRADE-16W8VLK45NPC1).
+✅ RESUELTO (14-jul-2026): IBM aprobó la verificación; upgrade completado, instancia Open Plan
+activa y credenciales en `.env`. Los puntos 1–4 de abajo quedaron ejecutados ese mismo día
+(calibración real descargada — con fix del `EdgeList` no serializable, tal y como predecía el
+punto 5 histórico —, dataset regenerado, e histórico de 29 días vía `collect_calibration.py --backfill`).
 
-1. **Calibración real** — el JSON actual es sintético con valores [SUPOSICIÓN].
-2. **Coupling map real** — la cadena lineal de 20q sintética hace que el transpilador
-   inserte más SWAPs de los reales, y que QAOA/TFIM solo generen ZZ vecino-a-vecino.
-3. **Error CZ real por par** — la heurística "CZ ≈ 5× error 1q" era de la era Eagle/CX;
-   con las cifras públicas de Heron el ratio real podría ser ~10×. Al obtener
-   `backend.properties()` real, **eliminar la heurística** y usar el error medido por arista.
-4. **gate_length real del CZ** — Heron tiene puertas ~8× más rápidas; el rango sintético
-   (40–60 ns) es estimación.
-5. **Campo `prob_meas1_prep0`** (TAREA 7a) — sin API real no se puede verificar qué expone
-   `qiskit-ibm-runtime` 0.47 para el readout asimétrico en Heron.
-6. **TAREA 6** (validación en hardware real) — bloqueada íntegra. La cuota Open Plan
-   (10 min/mes) se resetea con la cuenta nueva.
+1. ✅ **Calibración real** — descargada de `ibm_kingston` (156q, 352 aristas); la sintética fue eliminada.
+2. ✅ **Coupling map real** — el transpilador usa ya la topología heavy-hex real (la cadena lineal 20q era del apaño sintético).
+3. ⏳ **Error CZ real por par** — la heurística "CZ ≈ 5× error 1q" SIGUE ACTIVA [SUPOSICIÓN]: la
+   calibración cachea solo gate_error de `sx`. Sustituirla por el error CZ medido por arista es la
+   recomendación R1 de `doc/auditoria_ruido_ibm.md` (pendiente de decisión).
+4. ✅ **gate_length real** — ya viene de properties() reales.
+5. ✅ **Campo `prob_meas1_prep0`** — CONFIRMADO en la API real (readout asimétrico disponible para TAREA 7a).
+6. 🔄 **TAREA 6** — desbloqueada: 6a (calibración diaria) EN MARCHA con 29 días backfilled;
+   6b (ejecución en hardware) pendiente, cuota Open Plan 10 min/mes disponible.
 
-### Pasos al recuperar credenciales
+### Pasos ejecutados al recuperar credenciales (14-jul-2026, registro)
 
-```bash
-# 1. Poner IBM_TOKEN + IBM_INSTANCE_CRN nuevos en .env
-# 2. Borrar la calibración sintética
-rm data/raw/ibm_kingston_calib.json
-# 3. Relanzar cualquier pipeline — HardwareTelemetrics descarga y cachea la real
-conda run -n tfm python scripts/generate.py --mini   # regenerar mini-dataset
-# 4. Revisar que el coupling map real no rompa nada (tuplas vs listas)
-conda run -n tfm pytest tests/ -v
-# 5. dvc add data/ && dvc push
-```
+Los pasos previstos se ejecutaron tal cual: credenciales a `.env` → borrado de calibración
+sintética → descarga real vía `HardwareTelemetrics` (con fix del `EdgeList` de rustworkx no
+serializable a JSON) → `pytest` 37/37 → regeneración del mini-dataset → `dvc add && dvc push`.
+Además: `scripts/collect_calibration.py --backfill 30` archivó 29 snapshots históricos reales.
 
 ## 5. Pérdidas estructurales (no recuperables — documentar en §6 de la memoria)
 
@@ -116,9 +109,9 @@ Heron" con respaldo bibliográfico, ahorrando esfuerzo de implementación.
 
 | # | Suposición | Ubicación | ¿Verificable con credenciales? |
 |---|---|---|---|
-| S1 | Valores de calibración sintéticos Heron r2 | `make_synthetic_calib.py` | ✅ Sustituir por reales |
-| S2 | Cadena lineal 20q como topología | `make_synthetic_calib.py` | ✅ Coupling map real |
-| S3 | Error CZ ≈ 5× error 1q (posible infraestimación; ¿~10×?) | `_populate_noise_model()` | ✅ Error por par en properties() |
+| S1 | ~~Calibración sintética~~ | — | ✅ RESUELTA (real desde 14-jul-2026) |
+| S2 | ~~Cadena lineal 20q~~ | — | ✅ RESUELTA (coupling map real, 352 aristas) |
+| S3 | Error CZ ≈ 5× error 1q (posible infraestimación; ¿~10×?) | `_populate_noise_model()` | ⏳ ACTIVA — resolver con R1 de la auditoría |
 | S4 | Drift step-like ±15–30% aplica a Heron | `_init_drift_schedule()` | ⚠️ Requeriría telemetría histórica propia |
-| S5 | Readout simétrico P(0→1)=P(1→0) | `_populate_noise_model()` | ✅ TAREA 7a |
+| S5 | Readout simétrico P(0→1)=P(1→0) | `_populate_noise_model()` | ⏳ ACTIVA — campos asimétricos confirmados en API (TAREA 7a) |
 | S6 | Métricas relativas comparables Eagle (SOTA) vs Heron (TFM) | memoria §6 | ❌ Argumentar, no verificar |

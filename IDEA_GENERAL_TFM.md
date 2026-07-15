@@ -3,14 +3,13 @@
 > Este documento explica en lenguaje claro qué hace el TFM, cómo lo hace, por qué es diferente al estado del arte, y qué decisiones de diseño se han tomado y por qué.
 > Es el documento de referencia conceptual. Los detalles técnicos están en `CLAUDE.md` y `dataset_info.md`.
 
-> ## ⚠️ CAMBIO DE ALCANCE (jul-2026, acordado con el tutor)
-> El TFM se centra **únicamente en el módulo GEM**, planteado como **comparativa de 3 modelos**
-> (Ridge + Random Forest + Graph Transformer) prediciendo el error TOTAL Δ con protocolo de
-> evaluación idéntico. **El módulo REM descrito en este documento pasa a TRABAJO FUTURO** — las
-> secciones que lo mencionan se conservan como documentación del diseño original y de la línea
-> futura. El pipeline vigente es: `Circuito → GEM predice Δ → QPU → ⟨O⟩_mit = ⟨O⟩_noisy − Δ`.
-> Además, cuando la cuenta IBM esté activa, el drift sintético se sustituirá por **calibraciones
-> reales recopiladas a diario** (test temporal con drift auténtico). Ver `ROADMAP.md`.
+> ## ⚠️ ALCANCE VIGENTE (jul-2026, acordado con el tutor)
+> El TFM consiste en el **módulo GEM**, planteado como **comparativa de 3 modelos** (Ridge +
+> Random Forest + Graph Transformer) prediciendo el error TOTAL Δ con protocolo de evaluación
+> idéntico. El pipeline es: `Circuito → GEM predice Δ → QPU → ⟨O⟩_mit = ⟨O⟩_noisy − Δ`.
+> La corrección de lectura post-ejecución del diseño original quedó fuera del alcance y su
+> diseño completo vive en `IDEAS_FUTURAS.md` (IDEA-0). El drift se valida con **calibraciones
+> reales de IBM recopiladas a diario** (`data/raw/calib_history/`).
 
 ---
 
@@ -62,23 +61,7 @@ La solución clásica era ejecutar el mismo circuito 50-100 veces y hacer la med
 │  → resultado ruidoso ⟨O⟩noisy │
 └───────────────────────────────┘
         │
-        │ histograma de mediciones ruidosas
-        ▼
-┌───────────────────────────────┐
-│  MÓDULO REM                   │
-│  (Readout Error Mitigation)   │
-│                               │
-│  Entrada: histograma ruidoso  │
-│  + topología física del chip  │
-│                               │
-│  Proceso: GNN predice el      │
-│  error de lectura por qubit   │
-│  → corrección algebraica      │
-│  (GMRES en subespacio)        │
-│                               │
-│  Salida: ⟨O⟩noisy corregido   │
-└───────────────────────────────┘
-        │
+        │ histograma de mediciones (con ruido)
         ▼
 ┌───────────────────────────────┐
 │  RESULTADO FINAL              │
@@ -104,7 +87,7 @@ El modelo más fuerte actualmente (QEMFormer, ICML 2025) funciona así:
 
 Es muy preciso porque tiene toda la información disponible. El problema es que solo puede corregir después de ejecutar, y no separa los dos tipos de error.
 
-### El paradigma del TFM (pre-ejecución del GEM + post-ejecución del REM)
+### El paradigma del TFM (predicción pre-ejecución)
 
 El GEM predice el error de puertas **antes** de ejecutar el circuito, mirando únicamente el diseño del circuito y la calibración del chip ese día. Cuando ejecutas y obtienes el resultado ruidoso, ya tienes Δ calculado y solo tienes que restárselo.
 
@@ -113,10 +96,10 @@ El GEM predice el error de puertas **antes** de ejecutar el circuito, mirando ú
 **Capacidad 1 — Filtro de calidad previo a la ejecución:**
 Si tienes 100 circuitos candidatos y solo presupuesto para ejecutar 20 en IBM, el GEM puede estimar el error esperado de cada uno sin gastar ni un segundo de QPU. Seleccionas los 20 con menor error predicho. Esto es imposible con enfoques post-ejecución: tendrías que ejecutarlos todos antes de saber cuáles valen la pena.
 
-**Capacidad 2 — Separación limpia de los dos tipos de error:**
-El GEM solo aprende el error de puertas (REM desactivado durante su entrenamiento). El REM solo aprende el error de lectura (GEM separado). Esta separación tiene valor científico: permite estudiar cada fuente de ruido de forma independiente, algo que QEMFormer no permite porque los mezcla en un solo predictor.
-
-> **El TFM no sacrifica la corrección post-ejecución**: el REM opera después de la ejecución con toda la información del histograma. La diferencia es que la corrección de errores de puertas se calcula antes, de forma independiente y más eficiente.
+**Capacidad 2 — Corrección sin ejecuciones extra:**
+Con Δ predicho de antemano, el resultado mitigado se obtiene con una sola ejecución
+(⟨O⟩_mit = ⟨O⟩_noisy − Δ), frente a las decenas de ejecuciones que exigen las técnicas
+clásicas tipo ZNE.
 
 ---
 
@@ -190,14 +173,6 @@ Se reportarán todas las métricas relevantes para permitir comparación directa
 | R² | Correlación entre Δ predicho y Δ real (1.0 = perfecto) |
 | Mejora relativa | \|⟨O⟩noisy − ⟨O⟩ideal\| vs \|⟨O⟩mit − ⟨O⟩ideal\| |
 
-### Para el REM (corrección de distribuciones de probabilidad)
-
-| Métrica | Qué mide |
-|---|---|
-| Hellinger Fidelity (HF) | Parecido entre P_mit y P_ideal (0 a 1; 1 = idénticos) |
-| Total Variation Distance (TVD) | Diferencia total entre distribuciones (0 = perfecto) |
-| Ratio de mejora | HF_mit / HF_noisy (>1 significa que el REM ayuda) |
-
 Estas métricas se calculan separadamente para:
 - Circuitos in-distribution (random + HEA + TFIM)
 - Zero-shot A (QAOA)
@@ -236,8 +211,6 @@ Esta es una limitación real que se documenta honestamente en el TFM. Ver `IDEAS
 ---
 
 ## 8. Entrenamiento — principios clave
-
-- **GEM y REM se entrenan de forma desacoplada y paralela.** El GEM se entrena con ruido solo de puertas (readout desactivado en el simulador). El REM se entrena con circuitos triviales y solo ruido de lectura activado. Esto evita que los gradientes de un módulo contaminen al otro.
 
 - **El target del GEM es el residuo Δ, no el valor absoluto.** Predecir la diferencia (error) en lugar del valor absoluto estabiliza el entrenamiento. Δ es numéricamente pequeño y varía menos entre circuitos que ⟨O⟩_noisy.
 

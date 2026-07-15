@@ -1,6 +1,6 @@
 # Datasheet: TFM-Quantum Dataset
 
-Este documento detalla las especificaciones, decisiones arquitectónicas y justificaciones matemáticas detrás del conjunto de datos generado para el entrenamiento de los modelos GEM (Gate Error Mitigation) y REM (Readout Error Mitigation).
+Este documento detalla las especificaciones, decisiones arquitectónicas y justificaciones matemáticas detrás del conjunto de datos generado para el entrenamiento del modelo GEM (Gate Error Mitigation) y sus baselines de comparativa.
 
 El objetivo de este dataset **no** es el descubrimiento algorítmico, sino la captura y modelado del **Data Corruption & Denoising** inducido por el hardware cuántico en la era NISQ (Noisy Intermediate-Scale Quantum).
 
@@ -10,7 +10,7 @@ El objetivo de este dataset **no** es el descubrimiento algorítmico, sino la ca
 
 Para simular un entorno realista, el dataset actúa como un Gemelo Digital de los procesadores cuánticos de la familia **IBM Heron r2 (156 qubits)** — backend de referencia `ibm_kingston`. El proyecto migró desde IBM Eagle (`ibm_kyiv`) en julio de 2026, tras el retiro completo de la familia Eagle por parte de IBM (último Eagle retirado: abril 2026).
 
-* **Topología Base:** Heron r2, 156 qubits, puerta 2-qubit nativa **CZ** (Eagle usaba CX). [SUPOSICIÓN] La calibración sintética temporal usa una cadena lineal de 20 qubits hasta disponer de credenciales IBM para descargar el coupling map real.
+* **Topología Base:** Heron r2, 156 qubits, puerta 2-qubit nativa **CZ** (Eagle usaba CX). ✅ Desde jul-2026 la calibración es REAL (coupling map de 352 aristas descargado de `ibm_kingston`), con histórico diario en `data/raw/calib_history/`.
 * **Límite de Qubits por Sub-grafo:** Entre **5 y 15 qubits**.
 * **Justificación de Ingeniería:** La generación del *Ground Truth* (etiquetas $Y$) requiere simular el vector de estado ideal ($2^n$ amplitudes complejas). Escalar más allá de 15 qubits dispararía el consumo de memoria RAM por encima de los 16 GB disponibles en la estación de trabajo local, provocando cuelgues por *Out of Memory* (OOM). Operar en sub-grafos contiguos garantiza la escalabilidad del pipeline manteniendo tiempos de generación viables.
 
@@ -57,8 +57,8 @@ El hardware de IBM no se recalibra de forma gradual — las tasas de error cambi
 ### Ground Truth (La Variable $Y$)
 
 > **Alcance vigente (jul-2026):** la etiqueta Δ es el **error TOTAL** del circuito
-> (puertas + readout juntos) — con el REM fuera de alcance, la separación de ruidos
-> ya no aporta y el dataset actual es correcto tal cual.
+> (puertas + readout juntos) — la separación de ruidos quedó fuera del alcance
+> (ver IDEAS_FUTURAS.md) y el dataset actual es correcto tal cual.
 
 A diferencia de los datos de entrada, el objetivo ideal no se calcula mediante muestreo empírico (*shots*), lo que induciría error estadístico (*Shot Noise*). Se extrae analíticamente usando `qiskit.quantum_info.Statevector` para asegurar precisiones matemáticas perfectas al penalizar la función de pérdida (*Loss Function*).
 
@@ -99,14 +99,6 @@ Se reportan todas las métricas relevantes para comparación directa con el SOTA
 | RMSE | Error cuadrático medio (penaliza errores grandes más que MAE) |
 | R² | Correlación entre Δ predicho y Δ real (1.0 = perfecto, 0 = inútil) |
 | Mejora relativa | Cuánto mejor es el TFM vs. no mitigar: `|⟨O⟩_noisy − ⟨O⟩_ideal|` vs `|⟨O⟩_mit − ⟨O⟩_ideal|` |
-
-### REM — corrección de distribuciones de probabilidad
-
-| Métrica | Qué mide |
-|---|---|
-| Hellinger Fidelity (HF) | Parecido entre P_mit y P_ideal. Rango [0, 1]; 1 = idénticos |
-| Total Variation Distance (TVD) | Diferencia absoluta total entre distribuciones. 0 = perfecto |
-| Ratio de mejora | HF_mit / HF_noisy. >1 significa que el REM ayuda |
 
 ### Granularidad del reporte
 

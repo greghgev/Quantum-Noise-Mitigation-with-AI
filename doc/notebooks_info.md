@@ -12,7 +12,7 @@ Siguiendo las mejores prácticas de MLOps de la industria (*Cookiecutter Data Sc
 * **Objetivo:** Auditar las fuentes de datos del pipeline Y servir de pieza de comunicación para audiencia no experta (tutor, tribunal). Cada gráfica lleva los ejes explicados en lenguaje llano y una conclusión en una frase.
 * **Contenido:**
   * Qué aspecto tiene un circuito cuántico (dibujo real con `qc.draw('mpl')`) y su conversión a grafo — el input literal del GEM, con nodos coloreados por tipo de puerta.
-  * El "parte médico" del chip **IBM Heron r2 (`ibm_kingston`)**: T1, T2, readout, gate_error por qubit — calibración sintética [SUPOSICIÓN] hasta disponer de credenciales IBM.
+  * El "parte médico" del chip **IBM Heron r2 (`ibm_kingston`)**: T1, T2, readout, gate_error por qubit — calibración REAL descargada de IBM (jul-2026), con histórico diario en `calib_history/`.
   * *Concept Drift* step-like: heatmap qubit×día (divergente, neutro = sin cambio) + series temporales con la zona de test OOD marcada como "examen final".
   * El dataset por dentro: los 5 splits y su rol, distribución del target Δ con la **franja de shot-noise** dibujada, tamaño/anchura de circuitos, y composición por tipo de puerta.
 * **Valor para el Portfolio:** Demuestra la mentalidad de *Data Engineer* (auditar antes de entrenar) y la capacidad de comunicar resultados técnicos a audiencia general.
@@ -23,7 +23,7 @@ Siguiendo las mejores prácticas de MLOps de la industria (*Cookiecutter Data Sc
 * **Contenido:**
   * Los 5 tipos (random, HEA, TFIM, QAOA, QFT) lado a lado: estructura, profundidad post-transpilación a base Heron, y distribución de salida ideal vs. ruidosa.
   * **Barrido de shots (1024 → 16384)** midiendo la estabilidad de la etiqueta Δ por tipo de circuito: cuantifica el suelo de shot-noise detectado en TAREA 8 y justifica el valor de `LABEL_SHOTS` del full run con evidencia propia.
-  * Distinción explícita `LABEL_SHOTS` (etiquetas limpias) vs. `TRAIN_SHOTS` (inputs REM realistas) — ver `fallas_y_soluciones.md`.
+  * Distinción explícita `LABEL_SHOTS` (etiquetas limpias) vs. `TRAIN_SHOTS` (histogramas realistas, uso futuro) — ver `fallas_y_soluciones.md`.
 * **Valor para el Portfolio:** Demuestra rigurosidad estadística — la decisión de shots deja de ser una [SUPOSICIÓN] y pasa a estar respaldada por un experimento reproducible.
 
 ### 🤖 `03_gem_transformer_evaluation.ipynb` — Entrenamiento y Evaluación del GEM
@@ -36,7 +36,7 @@ Siguiendo las mejores prácticas de MLOps de la industria (*Cookiecutter Data Sc
 * **Valor para el Portfolio:** Justifica la elección de la arquitectura basada en atención para capturar el paralelismo y la localidad cuántica sin violar los unitarios lógicos.
 
 ### ⚖️ `04_model_comparison.ipynb` — La Comparativa: Ridge vs. Random Forest vs. GEM
-> **El núcleo del TFM revisado** (jul-2026, acordado con el tutor). Sustituye al antiguo notebook de evaluación REM (ahora trabajo futuro — `IDEAS_FUTURAS.md` IDEA-0).
+> **El núcleo del TFM revisado** (jul-2026, acordado con el tutor).
 * **Objetivo:** Comparar con protocolo idéntico los 3 modelos prediciendo Δ, y responder si la estructura de grafo aporta frente a las features agregadas.
 * **Contenido:**
   * Ridge y Random Forest sobre features agregadas del circuito (`src/features.py`); GEM sobre el DAG completo.

@@ -68,7 +68,7 @@
 - [x] Backend objetivo: `ibm_kingston` (Heron r2, 156 qubits, Open Plan) — configurable vía `IBM_BACKEND_NAME` en `.env`
 - [x] `src/config.py`: nuevas constantes `BACKEND_NAME` y `BASIS_GATES = [cz, id, rz, sx, x]`
 - [x] `src/quantum_gen.py`: basis gates CZ, one-hot posición 0 = `cz`, noise model 2q sobre `cz` en ambas orientaciones del par
-- [x] `scripts/make_synthetic_calib.py`: genera calibración sintética Heron r2 [SUPOSICIÓN: valores plausibles, cadena lineal 20q]
+- [x] `scripts/make_synthetic_calib.py`: genera calibración sintética Heron r2 [SUPOSICIÓN: valores plausibles, cadena lineal 20q] (script eliminado en jul-2026 al obtener calibración real — historial git)
 - [x] `tests/test_quantum_gen.py` actualizado (cx→cz) — 36/36 PASSED
 - [x] Mini-dataset Eagle borrado y regenerado con Heron; docs actualizadas (CLAUDE, README, dataset_info, IDEA_GENERAL...)
 - [ ] Credenciales IBM: cuenta antigua expirada (0 instancias); cuenta nueva bloqueada por verificación de tarjeta
@@ -88,7 +88,7 @@ Ver `doc/migracion_heron.md`.
       con crc32 (estable entre procesos, a diferencia de `hash()`). Test de regresión añadido:
       `test_no_leakage_between_splits_same_day`.
 - [x] **Fix 3 — `shots=4096` hardcodeado:** movido a `config.py` como `LABEL_SHOTS`, distinto
-      de `TRAIN_SHOTS` (input REM). Documentada la diferencia conceptual en `fallas_y_soluciones.md`
+      de `TRAIN_SHOTS` (histogramas realistas, uso futuro). Documentada la diferencia en `fallas_y_soluciones.md`
       (que tenía la nota de shots desactualizada — mezclaba ambos usos).
 - [x] **Fix 2 (parcial) — QAOA con `reps` variable 1-3** en lugar de fijo en 1: más profundidad
       → más error real acumulado, mejor relación señal/ruido sin subir shots.
@@ -98,8 +98,8 @@ Ver `doc/migracion_heron.md`.
 - [ ] **Pendiente — subir `LABEL_SHOTS` a 8192 o 16384 antes del full run.** [SUPOSICIÓN] Con
       4096 shots el suelo de shot-noise (±0.005) es del mismo orden que Δ en QAOA/QFT poco
       profundos — la etiqueta zero-shot es en esos casos indistinguible del ruido de medición.
-      No se sube ahora por el coste de cómputo del mini-run; decisión pospuesta a cuando haya
-      calibración real (se regenerará el dataset de todas formas).
+      No se sube en los mini-runs por coste de cómputo; decisión a tomar ANTES del full run
+      (la calibración real ya está disponible desde jul-2026).
 - [x] Mini-dataset regenerado con los 3 fixes; notebook 01 re-ejecutado y verificado
       `val != train` (antes eran idénticos).
 
@@ -108,7 +108,7 @@ Ver `doc/migracion_heron.md`.
 ## 🔄 CAMBIO DE ALCANCE (jul-2026, acordado con el tutor)
 
 **Decisión**: el TFM se reduce a **solo el módulo GEM**, planteado como **comparativa de modelos**.
-El REM pasa a trabajo futuro (documentado en `IDEAS_FUTURAS.md`). Razones del tutor: alcance
+La corrección de lectura post-ejecución del diseño original pasa a trabajo futuro (diseño completo consolidado en `IDEAS_FUTURAS.md` IDEA-0 — única referencia en el repo). Razones del tutor: alcance
 original excesivo para el plazo; el GEM solo ya es contribución suficiente (idea poco estudiada +
 arquitecturas novedosas + dataset propio + evaluación comparativa).
 
@@ -116,8 +116,8 @@ arquitecturas novedosas + dataset propio + evaluación comparativa).
 1. **Comparativa de 3 modelos** prediciendo Δ: Ridge (regresión lineal clásica) + Random Forest
    (mejor baseline según Liao 2024) + Graph Transformer (GEM). Baselines tabulares sobre features
    agregadas del circuito; mismo protocolo de evaluación para los tres.
-2. **Δ pasa a ser el error TOTAL (puertas + readout)** — sin REM, la separación de ruidos ya no
-   aporta. ✅ El dataset actual ya es correcto tal cual: el desacoplamiento pendiente queda ANULADO.
+2. **Δ pasa a ser el error TOTAL (puertas + readout)** — sin el segundo módulo, la separación de
+   ruidos ya no aporta. ✅ El dataset actual ya es correcto tal cual: el desacoplamiento pendiente queda ANULADO.
 3. **Drift real**: cuando la cuenta IBM esté activa, recopilar la calibración real diaria (gratis,
    sin QPU) y usar los días nuevos como test temporal — sustituye al drift sintético [SUPOSICIÓN]
    como conjunto de validación (idea del tutor, punto 3 de su correo).
@@ -145,8 +145,6 @@ arquitecturas novedosas + dataset propio + evaluación comparativa).
 - [ ] `src/train.py` — entrenamiento de los 3 modelos con protocolo IDÉNTICO (mismos splits, mismas
       métricas, misma semilla) + MLflow + normalización de Δ
 - [ ] `configs/baselines_config.yaml` — hiperparámetros de Ridge y RF (sin hardcoding)
-- [ ] 🔮 REM (`src/rem_model.py`, `src/inference.py` GEM→QPU→REM): **TRABAJO FUTURO** — ficheros
-      conservados como esqueleto, ver `IDEAS_FUTURAS.md`
 
 ---
 
@@ -168,7 +166,7 @@ arquitecturas novedosas + dataset propio + evaluación comparativa).
       (la nota anterior sobre regenerar etiquetas sin readout queda ANULADA — Δ es error total)
 - [ ] `04_model_comparison.ipynb` — **LA COMPARATIVA (núcleo del TFM revisado)**: Ridge vs. Random
       Forest vs. GEM con protocolo idéntico, tabla de métricas por split, análisis de dónde gana
-      cada modelo. (Sustituye al antiguo notebook REM, que pasa a trabajo futuro)
+      cada modelo.
 - [ ] `05_final_pipeline_tradeoffs.ipynb` — análisis final: mejor modelo aplicado al flujo completo,
       ablación 70/30 vs 80/20 vs 90/10 (opcional), figuras/tablas exportadas para la memoria.
       Trade-offs con barras agrupadas o small multiples en lugar de radar (legibilidad)
@@ -181,13 +179,16 @@ arquitecturas novedosas + dataset propio + evaluación comparativa).
 > calibración es GRATIS (no gasta QPU) — arrancarla EN CUANTO haya cuenta, cada día suma.
 
 ### 6a — Recopilación de calibración real diaria (idea del tutor — test con drift auténtico)
-- [ ] Script `scripts/collect_calibration.py`: descarga y archiva la calibración del día con
-      timestamp (`data/raw/calib_history/ibm_kingston_YYYY-MM-DD.json`)
-- [ ] Ejecutarlo a diario (cron/manual) durante ≥2 semanas
-- [ ] [SUPOSICIÓN a verificar] La API podría permitir descargar calibraciones históricas de fechas
-      pasadas de golpe — comprobarlo el primer día; ahorraría la espera
-- [ ] Regenerar dataset con calibraciones reales: train = días antiguos, test = días recientes
-      (drift REAL sustituye al sintético)
+- [x] ✅ Cuenta IBM ACTIVA (14-jul-2026): upgrade aprobado, instancia Open Plan us-east, credenciales verificadas
+- [x] Script `scripts/collect_calibration.py` creado y probado (descarga y archiva
+      `data/raw/calib_history/ibm_kingston_YYYY-MM-DD.json`)
+- [x] ✅ VERIFICADO: la API SÍ permite calibraciones históricas (`backend.properties(datetime=...)`) —
+      `--backfill 30` descargó 29 días reales de golpe (jun–jul 2026), sin espera
+- [x] Calibración real descargada; dataset regenerado con ella (fix EdgeList aplicado); sintética eliminada
+- [ ] Seguir ejecutando el recolector a diario (manual o cron) para alargar el histórico
+- [ ] Regenerar dataset con el HISTÓRICO real por día: train = días antiguos, test = días recientes
+      (drift REAL sustituye al drift sintético step-like) — requiere adaptar HardwareTelemetrics
+      para leer snapshots de calib_history/ en lugar del drift simulado
 
 ### 6b — Validación en hardware real (brecha simulation-to-real)
 - [ ] Ejecutar 20–30 circuitos representativos en `ibm_kingston` real (incluir random, HEA, QAOA, QFT)
@@ -200,8 +201,8 @@ arquitecturas novedosas + dataset propio + evaluación comparativa).
 ## ⏳ TAREA 7: Mejoras al modelo de ruido (post-validación real)
 
 > 🔒 Espera a TAREA 6. Activar solo si la brecha simulation-to-real justifica el esfuerzo.
-> Prioridad REBAJADA tras el cambio de alcance (jul-2026): estas mejoras servían sobre todo al REM,
-> que ahora es trabajo futuro. Para el GEM solo importan si la brecha de TAREA 6b es grande.
+> Prioridad REBAJADA tras el cambio de alcance (jul-2026): estas mejoras servían sobre todo al
+> módulo de lectura descartado (IDEAS_FUTURAS IDEA-0). Para el GEM solo importan si la brecha de TAREA 6b es grande.
 
 ### 7a — Matriz de confusión de readout asimétrica
 

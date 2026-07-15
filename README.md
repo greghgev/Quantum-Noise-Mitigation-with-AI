@@ -4,7 +4,7 @@
 
 Los ordenadores cuánticos actuales se equivocan en cada operación, como una calculadora imprecisa. Este TFM entrena modelos de IA que **predicen cuánto se equivocará la máquina ANTES de ejecutar el cálculo**, leyendo solo el "parte médico" diario del chip y el diseño del circuito. El trabajo se plantea como una **comparativa rigurosa de 3 modelos** — regresión lineal (Ridge), Random Forest y un Graph Transformer (GEM) — evaluados con protocolo idéntico.
 
-> 📌 **Alcance vigente (jul-2026, acordado con el tutor):** solo el módulo GEM, como comparativa de modelos. El segundo módulo original (REM, corrección del sensor de lectura post-ejecución) queda documentado como trabajo futuro.
+> 📌 **Alcance vigente (jul-2026, acordado con el tutor):** solo el módulo GEM, como comparativa de modelos. La corrección de lectura post-ejecución del diseño original vive como línea futura en `IDEAS_FUTURAS.md`.
 
 > 👤 **¿Primera vez en el proyecto?** Empieza por **[GUIA_TUTOR.md](GUIA_TUTOR.md)** — el recorrido completo sin tecnicismos, con el estado actual y el mapa de lectura.
 
@@ -12,7 +12,7 @@ Los ordenadores cuánticos actuales se equivocan en cada operación, como una ca
 
 ## Descripción técnica
 
-Predicción pre-ejecución del error de circuitos cuánticos en hardware NISQ (IBM Heron r2, 156 qubits) mediante una comparativa de modelos: baselines clásicos de regresión (Ridge, Random Forest) sobre features agregadas vs. un Graph Transformer (GEM) sobre el DAG del circuito con telemetría física por puerta. (El módulo REM post-ejecución del diseño original queda como trabajo futuro.)
+Predicción pre-ejecución del error de circuitos cuánticos en hardware NISQ (IBM Heron r2, 156 qubits) mediante una comparativa de modelos: baselines clásicos de regresión (Ridge, Random Forest) sobre features agregadas vs. un Graph Transformer (GEM) sobre el DAG del circuito con telemetría física por puerta.
 
 ---
 
@@ -46,10 +46,6 @@ Los tres predicen el mismo Δ, con los mismos splits, las mismas métricas y la 
 ⟨O⟩_mit = ⟨O⟩_noisy − Δ
 ```
 
-### 🔮 Trabajo futuro — Módulo REM (Readout Error Mitigation)
-
-Fuera del alcance vigente. Mitigaría el ruido de lectura **después** de recibir los counts: matrices locales de confusión 2×2 por qubit + **GMRES Matrix-Free** en el subespacio de bitstrings observados (O(N) en memoria). Los esqueletos (`src/rem_model.py`, `configs/rem_config.yaml`) se conservan en el repo.
-
 ---
 
 ## Estructura del Proyecto
@@ -57,10 +53,9 @@ Fuera del alcance vigente. Mitigaría el ruido de lectura **después** de recibi
 ```
 TFM-Quantum/
 ├── configs/
-│   ├── gem_config.yaml         # Hiperparámetros GEM (Graph Transformer)
-│   └── rem_config.yaml         # Hiperparámetros REM (GNN + GMRES)
+│   └── gem_config.yaml         # Hiperparámetros GEM (Graph Transformer)
 ├── data/
-│   ├── raw/                    # Calibración IBM (ibm_kingston_calib.json, historial T1/T2)
+│   ├── raw/                    # Calibración REAL de ibm_kingston + calib_history/ (snapshots diarios)
 │   └── processed/
 │       ├── train/              # Circuitos random, HEA, Trotterized TFIM (días 1–7)
 │       ├── val/                # In-distribution validation (día 6 OOD temporal)
@@ -89,20 +84,18 @@ TFM-Quantum/
 │   └── 05_final_pipeline_tradeoffs.ipynb       # Pipeline completo + ablación 70/30/80/20/90/10
 ├── scripts/                    # Entry-points ejecutables (importan de src/)
 │   ├── generate.py             # Genera el dataset (--mini o --full)
-│   ├── make_synthetic_calib.py # Calibración sintética Heron (mientras no hay credenciales IBM)
+│   ├── collect_calibration.py  # Snapshot diario de calibración real de IBM (--backfill N)
 │   ├── make_pipeline_figure.py # Genera figures/pipeline_tfm.png
 │   ├── train_gem.py            # Entrena el GEM
-│   ├── train_rem.py            # 🔮 Trabajo futuro (REM)
 │   └── evaluate.py             # Evalúa el pipeline completo por split
 ├── src/                        # Código fuente modular (lógica de negocio)
 │   ├── config.py               # Rutas, constantes físicas, semillas
 │   ├── quantum_gen.py          # CircuitFactory, HardwareTelemetrics, TFMDatasetPipeline
 │   ├── dataset.py              # PyG Dataset + DataLoaders (in-dist + zero-shot)
 │   ├── gem_model.py            # Graph Transformer con nodo QCR
-│   ├── rem_model.py            # GNN local 2×2 + GMRES Matrix-Free
-│   ├── train.py                # Entrenamiento desacoplado GEM/REM + MLflow + normalización Δ
-│   ├── inference.py            # Pipeline producción: GEM → QPU → REM
-│   └── utils.py                # Métricas, GMRES wrapper, encodings
+│   ├── train.py                # Entrenamiento de la comparativa (Ridge/RF/GEM) + MLflow
+│   ├── inference.py            # (Reservado) Inferencia del GEM en producción
+│   └── utils.py                # Métricas de la comparativa, encodings
 ├── .env                        # IBM_TOKEN + IBM_INSTANCE_CRN + IBM_BACKEND_NAME (no versionado)
 ├── GUIA_TUTOR.md               # Puerta de entrada sin tecnicismos (empieza aquí)
 ├── .gitignore
@@ -174,8 +167,6 @@ Modelo basado en evidencia empírica de hardware IBM real (vs. decay lineal prev
 
 Las métricas se calculan con protocolo idéntico para los 3 modelos de la comparativa y se reportan separadas por split: in-distribution / zero-shot QAOA / zero-shot QFT / por día.
 
-*(🔮 Trabajo futuro — métricas REM: Hellinger Fidelity, TVD, ratio HF_mit/HF_noisy.)*
-
 ---
 
 ## MLOps
@@ -216,13 +207,9 @@ dvc push
 
 # Entrenar
 conda run -n tfm python scripts/train_gem.py
-conda run -n tfm python scripts/train_rem.py
 
 # Evaluar (todos los splits)
-conda run -n tfm python scripts/evaluate.py \
-    --gem models/gem_best.pt \
-    --rem models/rem_best.pt \
-    --split all
+conda run -n tfm python scripts/evaluate.py --gem models/gem_best.pt --split all
 ```
 
 ---
@@ -240,7 +227,6 @@ conda run -n tfm python scripts/evaluate.py \
 
 - **GTraQEM** — Bao et al., ICLR 2025: Graph Transformer con nodo QCR (baseline arquitectónico del GEM)
 - **QEMFormer + QEM-Bench** — Bao et al., ICML 2025: el SOTA a superar; benchmark estándar del campo
-- **M3** — Nation et al. (IBM), PRX Quantum 2021: mitigación de readout matrix-free (fundamento del REM)
 - **Concept Drift** — Hirasaki et al., APL 2023 (evidencia física) + Huo et al., SIGMETRICS 2026 (evidencia operacional)
 - **Q-Cluster** — Patil et al., IEEE QCE 2025: paradigma no supervisado de contraste
 - Lista completa de 14 papers en `doc/SOTA/comparative_analysis.md`
